@@ -1,0 +1,91 @@
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
+
+Fatal error: Uncaught mysqli_sql_exception: Unknown column 'id' in 'SELECT' in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php:228
+Stack trace:
+#0 /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php(228): mysqli_query(Object(mysqli), 'SELECT id, tang...')
+#1 /home/eufmycrt/sayan.biz.id/futsalsayan/auto_cancel.php(4): autoCancelUnpaidBookings(Object(mysqli))
+#2 {main}
+  thrown in /home/eufmycrt/sayan.biz.id/futsalsayan/includes/functions.php on line 228
