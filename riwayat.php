@@ -14,6 +14,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'user') {
     exit();
 }
 
+// Jalankan auto-cancel sebelum query riwayat agar status langsung akurat
+autoCancelUnpaidBookings($conn);
+
 $user_id = $_SESSION['user_id'];
 
 // Kolom yang sama untuk semua jenis booking dengan alias tabel
@@ -127,39 +130,34 @@ while ($row = mysqli_fetch_assoc($total_result)) {
 include 'includes/header.php';
 ?>
 
-<div class="max-w-4xl mx-auto px-2 sm:px-6 lg:px-8">
-    <!-- Tombol Kembali ke Beranda -->
-    <a href="index.php" class="inline-flex items-center bg-gray-200 text-green-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 mb-4">
-        <i class="fas fa-arrow-left mr-2"></i> Kembali ke Beranda
+<div class="max-w-5xl mx-auto">
+    <a href="index.php" class="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors mb-5">
+        &larr; Kembali ke Beranda
     </a>
     <!-- Header dan Filter -->
-    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
-            <div class="flex-1 min-w-0">
-                <h2 class="text-2xl font-bold text-green-600 mb-2">Riwayat Booking</h2>
-                <div class="text-gray-600">
-                    <p class="mb-2">Lihat dan kelola riwayat booking Anda:</p>
-                    <ul class="list-disc list-inside space-y-1 text-sm">
-                        <li>Lihat detail booking dan status pembayaran</li>
-                        <li>Cetak atau simpan invoice untuk setiap booking</li>
-                        <li>Pantau status pembayaran yang masih pending</li>
-                        <li>Akses informasi pembayaran transfer atau QRIS</li>
-                    </ul>
-                </div>
+    <div class="bg-white rounded-lg border border-stone-200 p-5 sm:p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 pb-5 border-b border-stone-200 mb-5">
+            <div>
+                <h2 class="text-xl font-bold text-stone-900">Riwayat Booking</h2>
+                <p class="text-sm text-stone-500 mt-0.5">Daftar pesanan lapangan dan status pembayaran Anda.</p>
             </div>
-            <div class="flex-shrink-0 text-left sm:text-right w-full sm:w-auto">
-                <p class="font-semibold whitespace-normal break-words">Total Booking: <?php echo $total_data['total_booking']; ?></p>
-                <p class="text-green-600 font-semibold whitespace-normal break-words">
-                    Total Pembayaran: Rp <?php echo number_format($total_data['total_pembayaran'], 0, ',', '.'); ?>
-                </p>
+            <div class="flex items-center gap-6 tabular-nums">
+                <div>
+                    <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Total Booking</p>
+                    <p class="text-base font-bold text-stone-900"><?php echo $total_data['total_booking']; ?></p>
+                </div>
+                <div class="border-l border-stone-200 pl-6">
+                    <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Total Pembayaran</p>
+                    <p class="text-base font-bold text-green-800">Rp <?php echo number_format($total_data['total_pembayaran'], 0, ',', '.'); ?></p>
+                </div>
             </div>
         </div>
 
         <!-- Filter Form -->
-        <form method="GET" class="flex flex-wrap items-end gap-2 sm:space-x-4 sm:flex-nowrap mb-2">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status Pembayaran</label>
-                <select name="status" class="rounded border-gray-300 shadow-sm">
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Status</label>
+                <select name="status" class="w-full px-3 py-2 rounded-md border border-stone-300 text-sm text-stone-800 bg-white focus:outline-none focus:border-stone-900">
                     <option value="semua" <?php echo (!isset($_GET['status']) || $_GET['status'] == 'semua') ? 'selected' : ''; ?>>Semua Status</option>
                     <option value="pending" <?php echo (isset($_GET['status']) && $_GET['status'] == 'pending') ? 'selected' : ''; ?>>Menunggu Pembayaran</option>
                     <option value="dikonfirmasi" <?php echo (isset($_GET['status']) && $_GET['status'] == 'dikonfirmasi') ? 'selected' : ''; ?>>Pembayaran Diterima</option>
@@ -167,287 +165,228 @@ include 'includes/header.php';
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
-                <input type="date" name="dari" class="rounded border-gray-300 shadow-sm" 
-                       value="<?php echo isset($_GET['dari']) ? $_GET['dari'] : ''; ?>">
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Dari Tanggal</label>
+                <input type="date" name="dari" class="w-full px-3 py-2 rounded-md border border-stone-300 text-sm text-stone-800 focus:outline-none focus:border-stone-900" 
+                       value="<?php echo isset($_GET['dari']) ? htmlspecialchars($_GET['dari'], ENT_QUOTES, 'UTF-8') : ''; ?>">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
-                <input type="date" name="sampai" class="rounded border-gray-300 shadow-sm"
-                       value="<?php echo isset($_GET['sampai']) ? $_GET['sampai'] : ''; ?>">
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Sampai Tanggal</label>
+                <input type="date" name="sampai" class="w-full px-3 py-2 rounded-md border border-stone-300 text-sm text-stone-800 focus:outline-none focus:border-stone-900"
+                       value="<?php echo isset($_GET['sampai']) ? htmlspecialchars($_GET['sampai'], ENT_QUOTES, 'UTF-8') : ''; ?>">
             </div>
-            <div class="flex flex-col w-full sm:w-auto gap-2 sm:flex-row sm:space-x-2 mt-2 sm:mt-0">
-                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto">
-                    <i class="fas fa-filter mr-1"></i> Filter
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-stone-900 hover:bg-green-800 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors">
+                    Filter
                 </button>
-                <a href="riwayat.php" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 w-full sm:w-auto text-center">
-                    <i class="fas fa-sync-alt mr-1"></i> Reset
+                <a href="riwayat.php" class="px-3.5 py-2 rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-700 text-sm font-medium transition-colors text-center">
+                    Reset
                 </a>
             </div>
         </form>
     </div>
 
     <?php if (mysqli_num_rows($result) > 0): ?>
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <!-- Card layout for mobile -->
-            <div class="block md:hidden px-2">
-                <div class="grid grid-cols-1 gap-3">
-                    <?php mysqli_data_seek($result, 0); while($booking = mysqli_fetch_assoc($result)): ?>
-                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow w-full max-w-full break-words whitespace-normal">
-                            <div class="mb-2 font-semibold text-lg text-green-600 break-all whitespace-normal">
-                                #<?php echo $booking['id']; ?> - <span class="break-all whitespace-normal"><?php echo $booking['nama_lapangan']; ?></span>
-                                <span class="text-sm text-gray-500 break-all whitespace-normal">(<?php echo $booking['jenis_booking']; ?>)</span>
-                            </div>
-                            <div class="text-gray-600 mb-1 text-xs break-all whitespace-normal">
-                                <i class="far fa-calendar mr-1"></i>
-                                <?php echo date('d/m/Y', strtotime($booking['tanggal_jadwal'])); ?>
-                            </div>
-                            <div class="text-gray-600 mb-1 text-xs break-all whitespace-normal">
-                                <i class="far fa-clock mr-1"></i>
-                                <?php echo date('H:i', strtotime($booking['jam_mulai'])) . ' - ' . date('H:i', strtotime($booking['jam_selesai'])); ?>
-                            </div>
-                            <div class="text-green-600 font-semibold mb-1 text-xs break-all whitespace-normal">
-                                Rp <?php echo number_format($booking['total_harga'], 0, ',', '.'); ?>
-                            </div>
-                            <div class="text-gray-600 mb-1 text-xs break-all whitespace-normal">
-                                <?php 
-                                $metode_icon = '';
-                                $metode_text = '';
-                                switch($booking['metode_pembayaran']) {
-                                    case 'transfer':
-                                        $metode_icon = 'university';
-                                        $metode_text = 'Transfer Bank';
-                                        break;
-                                    case 'qris':
-                                        $metode_icon = 'qrcode';
-                                        $metode_text = 'QRIS';
-                                        break;
-                                    case 'cod':
-                                        $metode_icon = 'money-bill-wave';
-                                        $metode_text = 'Bayar di Tempat';
-                                        break;
-                                }
-                                ?>
-                                <i class="fas fa-<?php echo $metode_icon; ?> mr-1"></i>
-                                <?php echo $metode_text; ?>
-                            </div>
-                            <div class="mb-2">
-                                <?php 
-                                $status_class = '';
-                                $status_icon = '';
-                                $status_text = '';
-                                switch($booking['status_pembayaran']) {
-                                    case 'pending':
-                                        $status_class = 'bg-yellow-100 text-yellow-800 border border-yellow-300';
-                                        $status_icon = 'clock';
-                                        $status_text = 'Menunggu Pembayaran';
-                                        break;
-                                    case 'dikonfirmasi':
-                                        $status_class = 'bg-green-100 text-green-800 border border-green-300';
-                                        $status_icon = 'check-circle';
-                                        $status_text = 'Pembayaran Diterima';
-                                        break;
-                                    case 'dibatalkan':
-                                        $status_class = 'bg-red-100 text-red-800 border border-red-300';
-                                        $status_icon = 'times-circle';
-                                        $status_text = 'Dibatalkan';
-                                        break;
-                                }
-                                ?>
-                                <span class="px-2 py-1 rounded-full <?php echo $status_class; ?> text-xs inline-flex items-center break-all whitespace-normal">
-                                    <i class="fas fa-<?php echo $status_icon; ?> mr-1"></i>
-                                    <?php echo $status_text; ?>
-                                </span>
-                            </div>
-                            <div class="flex flex-wrap gap-2">
-                                <a href="<?php 
-                                    switch($booking['jenis_booking']) {
-                                        case 'Regular':
-                                            echo 'invoice.php';
-                                            break;
-                                        case 'Ekstrakurikuler':
-                                            echo 'invoice_eskul.php';
-                                            break;
-                                        case 'Turnamen':
-                                            echo 'invoice_turnamen.php';
-                                            break;
-                                    }
-                                ?>?booking_id=<?php echo $booking['id']; ?>&from=riwayat" 
-                                   class="flex items-center justify-center bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 mb-2 break-all whitespace-normal">
-                                    <i class="fas fa-eye mr-1"></i> Lihat
-                                </a>
-                                <?php if ($booking['status_pembayaran'] == 'pending'): ?>
-                                    <form action="cancel_booking.php" method="POST" class="inline" 
-                                          onsubmit="return confirm('Apakah Anda yakin ingin membatalkan booking ini?');">
-                                        <input type="hidden" name="booking_id" value="<?php echo $booking['id']; ?>">
-                                        <?php
-                                        $booking_type_map = [
-                                            'Regular' => 'regular',
-                                            'Ekstrakurikuler' => 'eskul',
-                                            'Turnamen' => 'turnamen'
-                                        ];
-                                        $booking_type_value = isset($booking_type_map[$booking['jenis_booking']]) ? $booking_type_map[$booking['jenis_booking']] : strtolower($booking['jenis_booking']);
-                                        ?>
-                                        <input type="hidden" name="booking_type" value="<?php echo $booking_type_value; ?>">
-                                        <button type="submit" 
-                                                class="flex items-center justify-center bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 mb-2 break-all whitespace-normal">
-                                            <i class="fas fa-times mr-1"></i> Batalkan
-                                        </button>
-                                    </form>
-                                <?php endif; ?>
-                            </div>
-                            <?php if($booking['status_pembayaran'] == 'pending' && $booking['metode_pembayaran'] != 'cod'): ?>
-                                <p class="text-xs text-red-600 break-all whitespace-normal">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>
-                                    Harap selesaikan pembayaran dalam 8 jam
-                                </p>
-                            <?php endif; ?>
+        <!-- Card layout for mobile -->
+        <div class="block md:hidden space-y-3">
+            <?php mysqli_data_seek($result, 0); while($booking = mysqli_fetch_assoc($result)): ?>
+                <?php
+                $metode_text = '';
+                switch($booking['metode_pembayaran']) {
+                    case 'transfer': $metode_text = 'Transfer Bank'; break;
+                    case 'qris': $metode_text = 'QRIS'; break;
+                    case 'cod': $metode_text = 'Bayar di Tempat (COD)'; break;
+                    default: $metode_text = ucfirst($booking['metode_pembayaran']);
+                }
+
+                $status_class = 'bg-stone-100 text-stone-700 border-stone-200';
+                $status_text = ucfirst($booking['status_pembayaran']);
+                switch($booking['status_pembayaran']) {
+                    case 'pending':
+                        $status_class = 'bg-amber-50 text-amber-800 border-amber-200';
+                        $status_text = 'Menunggu Pembayaran';
+                        break;
+                    case 'dikonfirmasi':
+                        $status_class = 'bg-green-50 text-green-800 border-green-200';
+                        $status_text = 'Pembayaran Diterima';
+                        break;
+                    case 'dibatalkan':
+                        $status_class = 'bg-red-50 text-red-700 border-red-200';
+                        $status_text = 'Dibatalkan';
+                        break;
+                }
+
+                $invoice_file = 'invoice.php';
+                if ($booking['jenis_booking'] === 'Ekstrakurikuler') $invoice_file = 'invoice_eskul.php';
+                elseif ($booking['jenis_booking'] === 'Turnamen') $invoice_file = 'invoice_turnamen.php';
+
+                $booking_type_map = [
+                    'Regular' => 'regular',
+                    'Ekstrakurikuler' => 'eskul',
+                    'Turnamen' => 'turnamen'
+                ];
+                $booking_type_value = $booking_type_map[$booking['jenis_booking']] ?? strtolower($booking['jenis_booking']);
+                ?>
+                <div class="bg-white border border-stone-200 rounded-lg p-4">
+                    <div class="flex items-start justify-between gap-2 pb-3 border-b border-stone-100">
+                        <div>
+                            <p class="text-xs text-stone-400 font-medium">#<?php echo $booking['id']; ?> &middot; <?php echo htmlspecialchars($booking['jenis_booking'], ENT_QUOTES, 'UTF-8'); ?></p>
+                            <h3 class="text-base font-bold text-stone-900 mt-0.5"><?php echo htmlspecialchars($booking['nama_lapangan'], ENT_QUOTES, 'UTF-8'); ?></h3>
                         </div>
-                    <?php endwhile; ?>
+                        <span class="px-2.5 py-1 rounded border text-[11px] font-medium whitespace-nowrap <?php echo $status_class; ?>">
+                            <?php echo $status_text; ?>
+                        </span>
+                    </div>
+
+                    <div class="py-3 space-y-1.5 text-xs text-stone-600 tabular-nums">
+                        <div class="flex justify-between">
+                            <span class="text-stone-400">Tanggal</span>
+                            <span class="font-medium text-stone-800"><?php echo date('d/m/Y', strtotime($booking['tanggal_jadwal'])); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-stone-400">Jam</span>
+                            <span class="font-medium text-stone-800"><?php echo date('H:i', strtotime($booking['jam_mulai'])) . ' – ' . date('H:i', strtotime($booking['jam_selesai'])); ?> WIB</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-stone-400">Metode</span>
+                            <span class="font-medium text-stone-800"><?php echo htmlspecialchars($metode_text, ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="flex justify-between pt-1.5 border-t border-stone-100 text-sm">
+                            <span class="font-medium text-stone-600">Total</span>
+                            <span class="font-bold text-green-800">Rp <?php echo number_format($booking['total_harga'], 0, ',', '.'); ?></span>
+                        </div>
+                    </div>
+
+                    <?php if($booking['status_pembayaran'] == 'pending'): ?>
+                        <?php $dl = getBookingPaymentDeadline($booking['tanggal_booking'], $booking['tanggal_jadwal'], $booking['jam_mulai']); ?>
+                        <p class="text-xs <?php echo $dl['is_urgent'] ? 'text-red-700 bg-red-50 border-red-200' : 'text-amber-800 bg-amber-50 border-amber-200'; ?> border rounded px-3 py-2 mb-3">
+                            <?php if ($dl['is_urgent']): ?>
+                                <strong>Booking Mendadak:</strong> Bayar &amp; konfirmasi admin maksimal <strong>15 menit</strong> (s.d. <?php echo $dl['deadline_formatted']; ?> WIB), jika tidak dibatalkan otomatis.
+                            <?php else: ?>
+                                Harap selesaikan pembayaran &amp; konfirmasi admin dalam 2 jam (s.d. <?php echo $dl['deadline_formatted']; ?> WIB).
+                            <?php endif; ?>
+                        </p>
+                    <?php endif; ?>
+
+                    <div class="grid <?php echo $booking['status_pembayaran'] == 'pending' ? 'grid-cols-2' : 'grid-cols-1'; ?> gap-2 pt-2 border-t border-stone-100">
+                        <a href="<?php echo $invoice_file; ?>?booking_id=<?php echo $booking['id']; ?>&from=riwayat" 
+                           class="py-2.5 px-3 text-center text-xs font-semibold rounded-md bg-stone-900 hover:bg-green-800 text-white transition-colors">
+                            Lihat Invoice
+                        </a>
+                        <?php if ($booking['status_pembayaran'] == 'pending'): ?>
+                            <button type="button"
+                                    onclick='openCancelModal(<?php echo (int)$booking["id"]; ?>, <?php echo json_encode($booking_type_value); ?>, <?php echo json_encode("#" . $booking["id"] . " — " . $booking["nama_lapangan"] . " (" . $booking["jenis_booking"] . ")"); ?>)'
+                                    class="w-full py-2.5 px-3 text-xs font-semibold rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 transition-colors">
+                                Batalkan
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
-            </div>
-            <!-- Table layout for desktop -->
-            <div class="hidden md:block overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-green-600 text-white">
+            <?php endwhile; ?>
+        </div>
+
+        <!-- Table layout for desktop -->
+        <div class="hidden md:block bg-white rounded-lg border border-stone-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-stone-50 border-b border-stone-200">
                         <tr>
-                            <th class="px-6 py-3 text-left">Detail Booking</th>
-                            <th class="px-6 py-3 text-left">Detail Pembayaran</th>
-                            <th class="px-6 py-3 text-left">Status & Invoice</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Detail Booking</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Pembayaran</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-stone-500">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-stone-200">
                         <?php mysqli_data_seek($result, 0); while($booking = mysqli_fetch_assoc($result)): ?>
-                            <tr class="hover:bg-gray-50">
+                            <?php
+                            $metode_text = '';
+                            switch($booking['metode_pembayaran']) {
+                                case 'transfer': $metode_text = 'Transfer Bank'; break;
+                                case 'qris': $metode_text = 'QRIS'; break;
+                                case 'cod': $metode_text = 'Bayar di Tempat (COD)'; break;
+                                default: $metode_text = ucfirst($booking['metode_pembayaran']);
+                            }
+
+                            $status_class = 'bg-stone-100 text-stone-700 border-stone-200';
+                            $status_text = ucfirst($booking['status_pembayaran']);
+                            switch($booking['status_pembayaran']) {
+                                case 'pending':
+                                    $status_class = 'bg-amber-50 text-amber-800 border-amber-200';
+                                    $status_text = 'Menunggu Pembayaran';
+                                    break;
+                                case 'dikonfirmasi':
+                                    $status_class = 'bg-green-50 text-green-800 border-green-200';
+                                    $status_text = 'Pembayaran Diterima';
+                                    break;
+                                case 'dibatalkan':
+                                    $status_class = 'bg-red-50 text-red-700 border-red-200';
+                                    $status_text = 'Dibatalkan';
+                                    break;
+                            }
+
+                            $invoice_file = 'invoice.php';
+                            if ($booking['jenis_booking'] === 'Ekstrakurikuler') $invoice_file = 'invoice_eskul.php';
+                            elseif ($booking['jenis_booking'] === 'Turnamen') $invoice_file = 'invoice_turnamen.php';
+
+                            $booking_type_map = [
+                                'Regular' => 'regular',
+                                'Ekstrakurikuler' => 'eskul',
+                                'Turnamen' => 'turnamen'
+                            ];
+                            $booking_type_value = $booking_type_map[$booking['jenis_booking']] ?? strtolower($booking['jenis_booking']);
+                            ?>
+                            <tr class="hover:bg-stone-50/70 transition-colors">
                                 <!-- Detail Booking -->
-                                <td class="px-6 py-4">
-                                    <div class="space-y-1">
-                                        <p class="font-semibold">
-                                            #<?php echo $booking['id']; ?> - <?php echo $booking['nama_lapangan']; ?>
-                                            <span class="text-sm text-gray-500">(<?php echo $booking['jenis_booking']; ?>)</span>
-                                        </p>
-                                        <p class="text-gray-600">
-                                            <i class="far fa-calendar mr-1"></i>
-                                            <?php echo date('d/m/Y', strtotime($booking['tanggal_jadwal'])); ?>
-                                        </p>
-                                        <p class="text-gray-600">
-                                            <i class="far fa-clock mr-1"></i>
-                                            <?php echo date('H:i', strtotime($booking['jam_mulai'])) . ' - ' . 
-                                                 date('H:i', strtotime($booking['jam_selesai'])); ?>
-                                        </p>
-                                    </div>
+                                <td class="px-5 py-4 align-top">
+                                    <p class="font-semibold text-stone-900">
+                                        #<?php echo $booking['id']; ?> &mdash; <?php echo htmlspecialchars($booking['nama_lapangan'], ENT_QUOTES, 'UTF-8'); ?>
+                                        <span class="text-xs font-normal text-stone-400 ml-1">(<?php echo htmlspecialchars($booking['jenis_booking'], ENT_QUOTES, 'UTF-8'); ?>)</span>
+                                    </p>
+                                    <p class="text-xs text-stone-500 mt-1 tabular-nums">
+                                        <?php echo date('d/m/Y', strtotime($booking['tanggal_jadwal'])); ?> &middot;
+                                        <?php echo date('H:i', strtotime($booking['jam_mulai'])) . ' – ' . date('H:i', strtotime($booking['jam_selesai'])); ?> WIB
+                                    </p>
                                 </td>
 
                                 <!-- Detail Pembayaran -->
-                                <td class="px-6 py-4">
-                                    <div class="space-y-1">
-                                        <p class="font-semibold text-green-600">
-                                            Rp <?php echo number_format($booking['total_harga'], 0, ',', '.'); ?>
-                                        </p>
-                                        <p class="text-gray-600">
-                                            <?php 
-                                            $metode_icon = '';
-                                            $metode_text = '';
-                                            switch($booking['metode_pembayaran']) {
-                                                case 'transfer':
-                                                    $metode_icon = 'university';
-                                                    $metode_text = 'Transfer Bank';
-                                                    break;
-                                                case 'qris':
-                                                    $metode_icon = 'qrcode';
-                                                    $metode_text = 'QRIS';
-                                                    break;
-                                                case 'cod':
-                                                    $metode_icon = 'money-bill-wave';
-                                                    $metode_text = 'Bayar di Tempat';
-                                                    break;
-                                            }
-                                            ?>
-                                            <i class="fas fa-<?php echo $metode_icon; ?> mr-1"></i>
-                                            <?php echo $metode_text; ?>
-                                        </p>
-                                        <?php if($booking['metode_pembayaran'] == 'transfer'): ?>
-                                            <p class="text-sm text-gray-500">Seabank: 901245634730</p>
-                                        <?php endif; ?>
-                                    </div>
+                                <td class="px-5 py-4 align-top tabular-nums">
+                                    <p class="font-bold text-stone-900">
+                                        Rp <?php echo number_format($booking['total_harga'], 0, ',', '.'); ?>
+                                    </p>
+                                    <p class="text-xs text-stone-500 mt-0.5"><?php echo htmlspecialchars($metode_text, ENT_QUOTES, 'UTF-8'); ?></p>
+                                    <?php if($booking['metode_pembayaran'] == 'transfer'): ?>
+                                        <p class="text-[11px] text-stone-400">SeaBank: 901245634730</p>
+                                    <?php endif; ?>
                                 </td>
 
-                                <!-- Status & Invoice -->
-                                <td class="px-6 py-4">
-                                    <div class="space-y-3">
-                                        <?php 
-                                        $status_class = '';
-                                        $status_icon = '';
-                                        $status_text = '';
-                                        
-                                        switch($booking['status_pembayaran']) {
-                                            case 'pending':
-                                                $status_class = 'bg-yellow-100 text-yellow-800 border border-yellow-300';
-                                                $status_icon = 'clock';
-                                                $status_text = 'Menunggu Pembayaran';
-                                                break;
-                                            case 'dikonfirmasi':
-                                                $status_class = 'bg-green-100 text-green-800 border border-green-300';
-                                                $status_icon = 'check-circle';
-                                                $status_text = 'Pembayaran Diterima';
-                                                break;
-                                            case 'dibatalkan':
-                                                $status_class = 'bg-red-100 text-red-800 border border-red-300';
-                                                $status_icon = 'times-circle';
-                                                $status_text = 'Dibatalkan';
-                                                break;
-                                        }
-                                        ?>
-                                        <div class="flex items-center space-x-2">
-                                            <span class="px-3 py-1 rounded-full <?php echo $status_class; ?> text-sm">
-                                                <i class="fas fa-<?php echo $status_icon; ?> mr-1"></i>
-                                                <?php echo $status_text; ?>
-                                            </span>
-                                        </div>
+                                <!-- Status -->
+                                <td class="px-5 py-4 align-top">
+                                    <span class="inline-block px-2.5 py-1 rounded border text-xs font-medium whitespace-nowrap <?php echo $status_class; ?>">
+                                        <?php echo $status_text; ?>
+                                    </span>
+                                    <?php if($booking['status_pembayaran'] == 'pending'): ?>
+                                        <?php $dl = getBookingPaymentDeadline($booking['tanggal_booking'], $booking['tanggal_jadwal'], $booking['jam_mulai']); ?>
+                                        <p class="text-[11px] <?php echo $dl['is_urgent'] ? 'text-red-700 font-medium' : 'text-stone-500'; ?> mt-1.5">
+                                            <?php echo $dl['is_urgent']
+                                                ? 'Batas 15 menit (s.d. ' . $dl['deadline_formatted'] . ' WIB)'
+                                                : 'Batas 2 jam (s.d. ' . $dl['deadline_formatted'] . ' WIB)'; ?>
+                                        </p>
+                                    <?php endif; ?>
+                                </td>
 
-                                        <div class="flex space-x-2">
-                                            <a href="<?php 
-                                                switch($booking['jenis_booking']) {
-                                                    case 'Regular':
-                                                        echo 'invoice.php';
-                                                        break;
-                                                    case 'Ekstrakurikuler':
-                                                        echo 'invoice_eskul.php';
-                                                        break;
-                                                    case 'Turnamen':
-                                                        echo 'invoice_turnamen.php';
-                                                        break;
-                                                }
-                                            ?>?booking_id=<?php echo $booking['id']; ?>&from=riwayat" 
-                                               class="flex items-center justify-center bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                                                <i class="fas fa-eye mr-1"></i> Lihat
-                                            </a>
-                                            <?php if ($booking['status_pembayaran'] == 'pending'): ?>
-                                                <form action="cancel_booking.php" method="POST" class="inline" 
-                                                      onsubmit="return confirm('Apakah Anda yakin ingin membatalkan booking ini?');">
-                                                    <input type="hidden" name="booking_id" value="<?php echo $booking['id']; ?>">
-                                                    <?php
-                                                    $booking_type_map = [
-                                                        'Regular' => 'regular',
-                                                        'Ekstrakurikuler' => 'eskul',
-                                                        'Turnamen' => 'turnamen'
-                                                    ];
-                                                    $booking_type_value = isset($booking_type_map[$booking['jenis_booking']]) ? $booking_type_map[$booking['jenis_booking']] : strtolower($booking['jenis_booking']);
-                                                    ?>
-                                                    <input type="hidden" name="booking_type" value="<?php echo $booking_type_value; ?>">
-                                                    <button type="submit" 
-                                                            class="flex items-center justify-center bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
-                                                        <i class="fas fa-times mr-1"></i> Batalkan
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
-                                        </div>
-
-                                        <?php if($booking['status_pembayaran'] == 'pending' && $booking['metode_pembayaran'] != 'cod'): ?>
-                                            <p class="text-xs text-red-600">
-                                                <i class="fas fa-exclamation-circle mr-1"></i>
-                                                Harap selesaikan pembayaran dalam 8 jam
-                                            </p>
+                                <!-- Aksi -->
+                                <td class="px-5 py-4 align-top text-right whitespace-nowrap">
+                                    <div class="inline-flex items-center justify-end gap-2">
+                                        <a href="<?php echo $invoice_file; ?>?booking_id=<?php echo $booking['id']; ?>&from=riwayat" 
+                                           class="px-3 py-1.5 text-xs font-medium rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-800 transition-colors">
+                                            Lihat Invoice
+                                        </a>
+                                        <?php if ($booking['status_pembayaran'] == 'pending'): ?>
+                                            <button type="button"
+                                                    onclick='openCancelModal(<?php echo (int)$booking["id"]; ?>, <?php echo json_encode($booking_type_value); ?>, <?php echo json_encode("#" . $booking["id"] . " — " . $booking["nama_lapangan"] . " (" . $booking["jenis_booking"] . ")"); ?>)'
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 transition-colors">
+                                                Batalkan
+                                            </button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -458,40 +397,97 @@ include 'includes/header.php';
             </div>
         </div>
     <?php else: ?>
-        <div class="bg-white rounded-lg shadow-md p-6 text-center">
-            <p class="text-gray-600">Anda belum memiliki riwayat booking.</p>
-            <a href="booking.php" class="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        <div class="bg-white rounded-lg border border-stone-200 p-8 text-center">
+            <p class="text-sm text-stone-500">Anda belum memiliki riwayat booking.</p>
+            <a href="index.php#lapangan-regular" class="inline-block mt-4 bg-stone-900 hover:bg-green-800 text-white text-sm font-semibold px-5 py-2.5 rounded-md transition-colors">
                 Booking Sekarang
             </a>
         </div>
     <?php endif; ?>
 
     <?php if (isset($error)): ?>
-        <div class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <?php echo $error; ?>
+        <div class="mt-4 bg-red-50 border-l-4 border-red-700 text-red-900 px-4 py-3 text-sm">
+            <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
         </div>
     <?php endif; ?>
+
+    <!-- Informasi Pembayaran Transfer -->
+    <div class="mt-8 bg-white rounded-lg border border-stone-200 p-5 sm:p-6">
+        <h3 class="text-base font-bold text-stone-900 mb-3">Informasi Pembayaran Transfer</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-4 border-b border-stone-100 text-sm">
+            <div>
+                <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Bank</p>
+                <p class="font-semibold text-stone-900 mt-0.5">Bank SeaBank</p>
+            </div>
+            <div>
+                <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">No. Rekening</p>
+                <p class="font-semibold text-stone-900 mt-0.5 tabular-nums">901245634730</p>
+            </div>
+            <div>
+                <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Atas Nama</p>
+                <p class="font-semibold text-stone-900 mt-0.5">Futsal Sayan Bekasi</p>
+            </div>
+        </div>
+        <ul class="mt-4 text-xs text-stone-500 space-y-1">
+            <li>&bull; Mohon transfer sesuai nominal total booking dan sertakan nomor invoice pada berita transfer.</li>
+            <li>&bull; Konfirmasi pembayaran diproses maksimal 1x24 jam.</li>
+            <li>&bull; Untuk pembayaran COD, harap datang minimal 20–30 menit sebelum jadwal main.</li>
+        </ul>
+    </div>
 </div>
 
-<!-- Informasi Pembayaran Transfer -->
-<div class="max-w-4xl mx-auto mt-8">
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-xl font-bold text-green-600 mb-4">Informasi Pembayaran Transfer</h3>
-        <div class="space-y-2">
-            <p><strong>Bank:</strong> Bank Seabank</p>
-            <p><strong>No. Rekening:</strong> 901245634730</p>
-            <p><strong>Atas Nama:</strong> Futsal Sayan Bekasi</p>
-        </div>
-        <div class="mt-4 text-sm text-gray-600">
-            <p>Catatan:</p>
-            <ul class="list-disc list-inside space-y-1">
-                <li>Mohon transfer sesuai dengan total harga booking</li>
-                <li>Sertakan nomor invoice pada berita transfer</li>
-                <li>Konfirmasi pembayaran akan diproses dalam 1x24 jam</li>
-                <li>Untuk pembayaran COD, silakan melakukan pembayaran di tempat minimal 30 menit sebelum jadwal main</li>
-            </ul>
+<!-- Modal Konfirmasi Pembatalan Booking -->
+<div id="cancelBookingModal" class="fixed inset-0 bg-stone-900/50 hidden z-50 p-0 sm:p-4">
+    <div class="min-h-full flex items-end sm:items-center justify-center">
+        <div class="w-full sm:max-w-md bg-white border-t sm:border border-stone-200 rounded-t-2xl sm:rounded-lg shadow-xl p-6 text-center">
+            <div class="w-10 h-1 bg-stone-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+            <img src="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/assets/images/cancel.svg"
+                 alt="Batalkan Booking"
+                 class="w-40 sm:w-44 h-auto mx-auto mb-4">
+            <h3 class="text-lg font-bold text-stone-900">Apakah Anda ingin membatalkan booking?</h3>
+            <p id="cancelBookingLabel" class="text-sm font-medium text-stone-700 mt-1.5"></p>
+            <p class="text-xs text-stone-500 mt-1">Tindakan ini tidak dapat dibatalkan setelah dikonfirmasi.</p>
+
+            <form action="cancel_booking.php" method="POST" class="mt-6 grid grid-cols-2 gap-2.5">
+                <?php echo csrf_field(); ?>
+                <input type="hidden" name="booking_id" id="cancelBookingId" value="">
+                <input type="hidden" name="booking_type" id="cancelBookingType" value="">
+                <button type="button" onclick="closeCancelModal()"
+                        class="py-2.5 px-4 rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-800 text-sm font-medium transition-colors">
+                    Tidak, Kembali
+                </button>
+                <button type="submit"
+                        class="py-2.5 px-4 rounded-md bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-colors">
+                    Ya, Batalkan
+                </button>
+            </form>
         </div>
     </div>
 </div>
+
+<script>
+function openCancelModal(bookingId, bookingType, label) {
+    document.getElementById('cancelBookingId').value = bookingId;
+    document.getElementById('cancelBookingType').value = bookingType;
+    document.getElementById('cancelBookingLabel').textContent = label || '';
+    document.getElementById('cancelBookingModal').classList.remove('hidden');
+}
+
+function closeCancelModal() {
+    document.getElementById('cancelBookingModal').classList.add('hidden');
+}
+
+document.getElementById('cancelBookingModal').addEventListener('click', function(e) {
+    if (e.target === this || e.target === this.firstElementChild) {
+        closeCancelModal();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeCancelModal();
+    }
+});
+</script>
 
 <?php include 'includes/footer.php'; ?>

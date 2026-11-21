@@ -13,6 +13,13 @@ if (!isset($_SESSION['user_id']) || !isset($_POST['booking_id'])) {
     exit();
 }
 
+if (!validate_csrf_request()) {
+    $_SESSION['error'] = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.";
+    $ref = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'index.php';
+    header("Location: " . $ref);
+    exit();
+}
+
 $booking_id = mysqli_real_escape_string($conn, $_POST['booking_id']);
 $user_id = $_SESSION['user_id'];
 

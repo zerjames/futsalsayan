@@ -20,9 +20,16 @@ if (!$result_eskul) {
     error_log("Eskul packages found: " . $eskul_count);
 }
 
-// Get current month and year
-$month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m');
-$year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+// Get current month and year with strict validation
+$month = isset($_GET['month']) ? filter_var($_GET['month'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]) : false;
+if ($month === false) {
+    $month = (int)date('n');
+}
+
+$year = isset($_GET['year']) ? filter_var($_GET['year'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 2000, 'max_range' => 2100]]) : false;
+if ($year === false) {
+    $year = (int)date('Y');
+}
 
 // Query untuk booking regular
 $query_regular = "SELECT 
@@ -159,12 +166,42 @@ $monthNames = [
 $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Bekasi. Kami menyediakan lapangan berkualitas, fasilitas lengkap, dan layanan booking online yang mudah dan cepat. Dengan pengalaman bertahun-tahun, kami berkomitmen memberikan pengalaman terbaik untuk komunitas futsal, sekolah, dan turnamen di wilayah Bekasi dan sekitarnya. Hubungi kami untuk informasi lebih lanjut atau booking lapangan!';
 ?>
 
-<div class="container mx-auto px-4 py-8">
-    <!-- Hero Section -->
-    <div class="bg-green-600 text-white rounded-lg shadow-lg p-6 md:p-8 mb-8 text-center md:text-left">
-        <h1 class="text-3xl md:text-4xl font-bold mb-4">Futsal Sayan Bekasi</h1>
-        <p class="text-base md:text-lg mb-6">Booking lapangan futsal Sayan dengan mudah dan cepat, ayo booking sekarang!</p>
-    </div>
+<div class="space-y-14">
+    <!-- Hero Section: Editorial Split -->
+    <?php
+        $heroFile = __DIR__ . '/assets/images/backgoundindex.jpg';
+        $heroVer = file_exists($heroFile) ? substr(md5_file($heroFile), 0, 8) : '1.0';
+        $heroBg = $base_url . '/assets/images/backgoundindex.jpg?v=' . $heroVer;
+    ?>
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center pt-1 sm:pt-2">
+        <div class="lg:col-span-6 space-y-4 sm:space-y-5">
+            <p class="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-green-800">
+                Mustika Jaya, Bekasi &middot; Buka 08.00 – 23.00 WIB
+            </p>
+            <h1 class="text-3xl sm:text-4xl lg:text-[42px] font-extrabold tracking-tight text-stone-900 leading-[1.15]">
+                Futsal Sayan Bekasi
+            </h1>
+            <p class="text-stone-600 text-sm sm:text-base leading-relaxed max-w-lg">
+                Cek jadwal kosong dan pesan lapangan langsung dari sini — tersedia sewa regular per jam, paket bulanan ekstrakurikuler, hingga sewa harian untuk turnamen.
+            </p>
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
+                <a href="#lapangan-regular" class="px-4 sm:px-5 py-3 sm:py-2.5 rounded-md bg-stone-900 hover:bg-green-800 active:bg-green-900 text-white text-sm font-semibold transition-colors text-center">
+                    Pilih Lapangan
+                </a>
+                <a href="#jadwal-booking" class="px-4 sm:px-5 py-3 sm:py-2.5 rounded-md border border-stone-300 bg-white hover:border-stone-900 active:bg-stone-100 text-stone-800 text-sm font-medium transition-colors text-center">
+                    Lihat Jadwal
+                </a>
+            </div>
+        </div>
+        <div class="lg:col-span-6">
+            <div class="rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
+                <img src="<?php echo htmlspecialchars($heroBg, ENT_QUOTES, 'UTF-8'); ?>"
+                     alt="Lapangan Futsal Sayan Bekasi"
+                     class="w-full h-52 sm:h-80 object-cover block">
+            </div>
+        </div>
+    </section>
+
     <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] !== 'admin'): ?>
       <?php
         $uid = $_SESSION['user_id'];
@@ -172,154 +209,192 @@ $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Beka
         $username = $user ? $user['username'] : '';
         $foto = !empty($user['foto_profil']) ? 'uploads/profile/' . $user['foto_profil'] : 'assets/images/default_profile.png';
       ?>
-      <div class="bg-white rounded-xl shadow flex items-center gap-3 mb-6 px-5 py-4 max-w-md">
-        <img src="<?php echo $foto; ?>" alt="Profil" class="w-12 h-12 rounded-full object-cover border-2 border-green-400 shadow">
-        <div class="text-lg font-semibold text-green-700">Selamat datang kembali, <?php echo htmlspecialchars($username); ?>!</div>
+      <div class="bg-white rounded-lg border border-stone-200 flex items-center justify-between gap-4 px-5 py-3.5">
+        <div class="flex items-center gap-3">
+            <img src="<?php echo htmlspecialchars($foto, ENT_QUOTES, 'UTF-8'); ?>" alt="Profil" class="w-10 h-10 rounded-full object-cover border border-stone-200">
+            <div>
+                <p class="text-xs text-stone-500">Halo,</p>
+                <p class="text-sm font-bold text-stone-900"><?php echo htmlspecialchars($username, ENT_QUOTES, 'UTF-8'); ?></p>
+            </div>
+        </div>
+        <a href="riwayat.php" class="text-xs sm:text-sm font-semibold text-stone-900 hover:text-green-800 underline">
+            Lihat Riwayat Booking
+        </a>
       </div>
     <?php endif; ?>
-    <!-- Tentang Kami Section -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-4">Jadwal Booking</h2>
-        
-        <!-- Calendar Controls -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
-            <a href="?month=<?php echo $prevMonth; ?>&year=<?php echo $prevYear; ?>" 
-               class="bg-gray-200 px-4 py-3 rounded hover:bg-gray-300 w-full md:w-auto text-center">
-                <i class="fas fa-chevron-left"></i> Bulan Sebelumnya
-            </a>
-            <h3 class="text-xl font-semibold order-first md:order-none"><?php echo $monthNames[$month] . ' ' . $year; ?></h3>
-            <a href="?month=<?php echo $nextMonth; ?>&year=<?php echo $nextYear; ?>" 
-               class="bg-gray-200 px-4 py-3 rounded hover:bg-gray-300 w-full md:w-auto text-center">
-                Bulan Berikutnya <i class="fas fa-chevron-right"></i>
-            </a>
+
+    <!-- Info Bar -->
+    <section class="bg-white border border-stone-200 rounded-lg grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-stone-200">
+        <div class="p-5">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Jam Operasional</p>
+            <p class="text-sm font-semibold text-stone-900 mt-1">Setiap hari, 08:00 – 23:00 WIB</p>
+        </div>
+        <div class="p-5">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Pembayaran</p>
+            <p class="text-sm font-semibold text-stone-900 mt-1">Transfer Bank, QRIS, atau Bayar di Tempat</p>
+        </div>
+        <div class="p-5">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Kontak / WhatsApp</p>
+            <p class="text-sm font-semibold text-stone-900 mt-1 tabular-nums">0857-4851-5801</p>
+        </div>
+    </section>
+
+    <!-- Jadwal Booking Section -->
+    <section id="jadwal-booking" class="scroll-mt-20 border-t border-stone-200 pt-8 sm:pt-10">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
+            <div>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400">01 / Jadwal</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-stone-900 mt-1">Kalender Booking</h2>
+            </div>
+            <!-- Calendar Controls -->
+            <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                <a href="?month=<?php echo htmlspecialchars((string)$prevMonth, ENT_QUOTES, 'UTF-8'); ?>&year=<?php echo htmlspecialchars((string)$prevYear, ENT_QUOTES, 'UTF-8'); ?>#jadwal-booking" 
+                   class="px-3.5 py-2.5 sm:py-1.5 rounded-md border border-stone-300 bg-white hover:border-stone-900 active:bg-stone-100 text-stone-700 text-xs font-medium transition-colors">
+                    &larr; <span class="hidden sm:inline">Sebelumnya</span>
+                </a>
+                <h3 class="text-sm font-bold text-stone-900 min-w-[130px] text-center">
+                    <?php echo htmlspecialchars($monthNames[$month] . ' ' . $year, ENT_QUOTES, 'UTF-8'); ?>
+                </h3>
+                <a href="?month=<?php echo htmlspecialchars((string)$nextMonth, ENT_QUOTES, 'UTF-8'); ?>&year=<?php echo htmlspecialchars((string)$nextYear, ENT_QUOTES, 'UTF-8'); ?>#jadwal-booking" 
+                   class="px-3.5 py-2.5 sm:py-1.5 rounded-md border border-stone-300 bg-white hover:border-stone-900 active:bg-stone-100 text-stone-700 text-xs font-medium transition-colors">
+                    <span class="hidden sm:inline">Berikutnya</span> &rarr;
+                </a>
+            </div>
         </div>
 
-                <!-- Calendar Grid -->
-                <div class="bg-white rounded-lg shadow overflow-x-auto">
-                    <!-- Days of Week -->
-                    <div class="grid grid-cols-7 gap-px bg-gray-200">
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Min</div>
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Sen</div>
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Sel</div>
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Rab</div>
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Kam</div>
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Jum</div>
-                        <div class="px-1 py-2 text-center font-semibold text-xs sm:text-sm md:text-base md:px-2">Sab</div>
-                    </div>
+        <!-- Calendar Grid -->
+        <div class="bg-white rounded-lg border border-stone-200 overflow-hidden">
+            <!-- Days of Week -->
+            <div class="grid grid-cols-7 bg-stone-50 border-b border-stone-200">
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Min</div>
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Sen</div>
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Sel</div>
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Rab</div>
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Kam</div>
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Jum</div>
+                <div class="py-2.5 text-center font-semibold text-[11px] sm:text-xs text-stone-500">Sab</div>
+            </div>
 
-                    <!-- Calendar Days -->
-                    <div class="grid grid-cols-7 gap-px bg-gray-200">
-                <?php
-                // Empty cells before start of month
-                for ($i = 0; $i < $firstDayOfWeek; $i++) {
-                    echo '<div class="bg-white p-2 h-24 md:h-32"></div>';
+            <!-- Calendar Days -->
+            <div class="grid grid-cols-7 gap-px bg-stone-200">
+            <?php
+            for ($i = 0; $i < $firstDayOfWeek; $i++) {
+                echo '<div class="bg-stone-50/70 p-1.5 sm:p-2 h-16 sm:h-24 md:h-28"></div>';
+            }
+
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $isToday = $day == date('j') && $month == date('m') && $year == date('Y');
+                $hasBookings = isset($bookings[$day]);
+                $dayClass = $isToday ? 'bg-green-50/60' : 'bg-white';
+                $onclickAttr = '';
+                if ($hasBookings) {
+                    $bookingData = htmlspecialchars(json_encode($bookings[$day]), ENT_QUOTES, 'UTF-8');
+                    $dayClass .= ' cursor-pointer hover:bg-stone-50 active:bg-stone-100 transition-colors';
+                    $onclickAttr = ' onclick="showBookingDetails(\'' . $bookingData . '\', \'' . $day . ' ' . $monthNames[$month] . ' ' . $year . '\')"';
                 }
-
-                // Days of month
-                for ($day = 1; $day <= $daysInMonth; $day++) {
-                    $isToday = $day == date('j') && $month == date('m') && $year == date('Y');
-                    $dayClass = $isToday ? 'bg-green-50' : 'bg-white';
-                    
-                    echo '<div class="' . $dayClass . ' p-2 h-24 md:h-32 relative">';
-                    echo '<span class="absolute top-1 right-1 text-sm ' . ($isToday ? 'text-green-600 font-bold' : 'text-gray-500') . '">' . $day . '</span>';
-                    
-                    // Display indicator if there are bookings
-                    if (isset($bookings[$day])) {
-                        $bookingData = htmlspecialchars(json_encode($bookings[$day]), ENT_QUOTES, 'UTF-8');
-                        // Count bookings by type
-                        $regular = 0;
-                        $eskul = 0;
-                        $turnamen = 0;
-                        foreach ($bookings[$day] as $b) {
-                            if ($b['tipe'] == 'regular') $regular++;
-                            elseif ($b['tipe'] == 'eskul') $eskul++;
-                            else $turnamen++;
-                        }
-
-                        echo '<div class="mt-2 md:mt-4 cursor-pointer" onclick="showBookingDetails(\'' . $bookingData . '\', \'' . $day . ' ' . $monthNames[$month] . ' ' . $year . '\')">';
-                        echo '<div class="text-xs space-y-1">';
-                        if ($regular > 0) {
-                            echo '<div class="p-1 bg-blue-100 rounded text-center">';
-                            echo '<div class="font-semibold">' . $regular . ' Regular</div>';
-                            echo '</div>';
-                        }
-                        if ($eskul > 0) {
-                            echo '<div class="p-1 bg-green-100 rounded text-center">';
-                            echo '<div class="font-semibold">' . $eskul . ' Eskul</div>';
-                            echo '</div>';
-                        }
-                        if ($turnamen > 0) {
-                            echo '<div class="p-1 bg-purple-100 rounded text-center">';
-                            echo '<div class="font-semibold">' . $turnamen . ' Turnamen</div>';
-                            echo '</div>';
-                        }
-                        echo '</div>';
-                        echo '</div>';
+                
+                echo '<div class="' . $dayClass . ' p-1.5 sm:p-2 h-16 sm:h-24 md:h-28 relative flex flex-col"' . $onclickAttr . '>';
+                echo '<div class="flex items-center justify-between">';
+                if ($isToday) {
+                    echo '<span class="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-green-800 text-white text-xs font-bold tabular-nums">' . $day . '</span>';
+                } else {
+                    echo '<span class="text-xs font-medium text-stone-600 tabular-nums">' . $day . '</span>';
+                }
+                echo '</div>';
+                
+                if ($hasBookings) {
+                    $regular = 0;
+                    $eskul = 0;
+                    $turnamen = 0;
+                    foreach ($bookings[$day] as $b) {
+                        if ($b['tipe'] == 'regular') $regular++;
+                        elseif ($b['tipe'] == 'eskul') $eskul++;
+                        else $turnamen++;
                     }
-                    
+                    $totalDay = $regular + $eskul + $turnamen;
+
+                    // Mobile compact indicator (dots + count, easy to read on small screens)
+                    echo '<div class="sm:hidden mt-auto flex items-center gap-1 flex-wrap">';
+                    if ($regular > 0) echo '<span class="w-2 h-2 rounded-full bg-sky-600 inline-block"></span>';
+                    if ($eskul > 0) echo '<span class="w-2 h-2 rounded-full bg-green-700 inline-block"></span>';
+                    if ($turnamen > 0) echo '<span class="w-2 h-2 rounded-full bg-amber-600 inline-block"></span>';
+                    echo '<span class="text-[10px] font-semibold text-stone-600 tabular-nums ml-auto">' . $totalDay . '</span>';
+                    echo '</div>';
+
+                    // Desktop/Tablet detailed labels
+                    echo '<div class="hidden sm:block mt-1 space-y-1">';
+                    if ($regular > 0) {
+                        echo '<div class="px-1.5 py-0.5 bg-sky-50 text-sky-900 border-l-2 border-sky-600 text-[11px] font-medium truncate">' . $regular . ' Regular</div>';
+                    }
+                    if ($eskul > 0) {
+                        echo '<div class="px-1.5 py-0.5 bg-green-50 text-green-900 border-l-2 border-green-700 text-[11px] font-medium truncate">' . $eskul . ' Eskul</div>';
+                    }
+                    if ($turnamen > 0) {
+                        echo '<div class="px-1.5 py-0.5 bg-amber-50 text-amber-900 border-l-2 border-amber-600 text-[11px] font-medium truncate">' . $turnamen . ' Turnamen</div>';
+                    }
                     echo '</div>';
                 }
+                
+                echo '</div>';
+            }
 
-                // Empty cells after end of month
-                $lastDayOfWeek = date('w', mktime(0, 0, 0, $month, $daysInMonth, $year));
-                for ($i = $lastDayOfWeek; $i < 6; $i++) {
-                    echo '<div class="bg-white p-2 h-24 md:h-32"></div>';
-                }
-                ?>
+            $lastDayOfWeek = date('w', mktime(0, 0, 0, $month, $daysInMonth, $year));
+            for ($i = $lastDayOfWeek; $i < 6; $i++) {
+                echo '<div class="bg-stone-50/70 p-1.5 sm:p-2 h-16 sm:h-24 md:h-28"></div>';
+            }
+            ?>
             </div>
         </div>
 
         <!-- Calendar Legend -->
-        <div class="mt-4 bg-white rounded-lg shadow p-4">
-            <h3 class="font-semibold mb-3 text-center md:text-left">Keterangan:</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div class="flex items-center justify-center md:justify-start">
-                    <div class="w-5 h-5 bg-green-50 border border-green-200 mr-2"></div>
-                    <span class="text-sm">Hari Ini</span>
-                </div>
-                <div class="flex items-center justify-center md:justify-start">
-                    <div class="w-5 h-5 bg-blue-100 border border-blue-200 mr-2"></div>
-                    <span class="text-sm">Regular</span>
-                </div>
-                <div class="flex items-center justify-center md:justify-start">
-                    <div class="w-5 h-5 bg-green-100 border border-green-200 mr-2"></div>
-                    <span class="text-sm">Eskul</span>
-                </div>
-                <div class="flex items-center justify-center md:justify-start">
-                    <div class="w-5 h-5 bg-purple-100 border border-purple-200 mr-2"></div>
-                    <span class="text-sm">Turnamen</span>
-                </div>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
+            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-green-800 inline-block"></span> Hari Ini</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full sm:rounded-none bg-sky-600 inline-block"></span> Regular</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full sm:rounded-none bg-green-700 inline-block"></span> Eskul</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full sm:rounded-none bg-amber-600 inline-block"></span> Turnamen</span>
             </div>
-            <div class="mt-3 pt-3 border-t border-gray-200">
-                <div class="flex items-center justify-center md:justify-start">
-                    <i class="fas fa-info-circle text-gray-500 mr-2"></i>
-                    <span class="text-sm text-gray-600">Klik tanggal untuk melihat detail jadwal booking</span>
-                </div>
-            </div>
+            <span>Ketuk tanggal bertanda untuk detail jam</span>
         </div>
-    </div>
+    </section>
 
     <!-- Booking Regular -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-4 px-2">Booking Regular</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 px-2">
+    <section id="lapangan-regular" class="scroll-mt-24 border-t border-stone-200 pt-10">
+        <div class="mb-6">
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400">02 / Sewa Per Jam</p>
+            <h2 class="text-2xl font-bold text-stone-900 mt-1">Booking Regular</h2>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php while($lapangan = mysqli_fetch_assoc($result)): ?>
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-300">
+                <div class="bg-white rounded-lg border border-stone-200 overflow-hidden flex flex-col">
                     <?php if ($lapangan['gambar']): ?>
-                        <img src="uploads/lapangan/<?php echo $lapangan['gambar']; ?>" 
-                             alt="<?php echo $lapangan['nama']; ?>"
+                        <img src="uploads/lapangan/<?php echo htmlspecialchars($lapangan['gambar'], ENT_QUOTES, 'UTF-8'); ?>" 
+                             alt="<?php echo htmlspecialchars($lapangan['nama'], ENT_QUOTES, 'UTF-8'); ?>"
                              class="w-full h-48 object-cover">
+                    <?php else: ?>
+                        <div class="w-full h-48 bg-stone-100 flex items-center justify-center text-stone-400 text-xs">
+                            Foto belum tersedia
+                        </div>
                     <?php endif; ?>
-                    <div class="p-4">
-                        <h3 class="text-xl font-semibold mb-2"><?php echo $lapangan['nama']; ?></h3>
-                        <p class="text-gray-600 mb-4"><?php echo $lapangan['deskripsi']; ?></p>
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                            <span class="text-green-600 font-bold text-lg">
-                                Rp <?php echo number_format($lapangan['harga_per_jam'], 0, ',', '.'); ?>/jam
-                            </span>
+                    <div class="p-5 flex-1 flex flex-col">
+                        <h3 class="text-base font-bold text-stone-900 mb-1.5"><?php echo htmlspecialchars($lapangan['nama'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                        <p class="text-sm text-stone-500 leading-relaxed mb-5 flex-1"><?php echo htmlspecialchars($lapangan['deskripsi'], ENT_QUOTES, 'UTF-8'); ?></p>
+                        <div class="pt-4 border-t border-stone-100 flex items-center justify-between gap-3">
+                            <div class="tabular-nums">
+                                <span class="text-base font-bold text-stone-900">
+                                    Rp <?php echo number_format($lapangan['harga_per_jam'], 0, ',', '.'); ?>
+                                </span>
+                                <span class="text-xs text-stone-400">/jam</span>
+                            </div>
                             <?php if (isset($_SESSION['user_id'])): ?>
-                                <a href="booking_regular.php?lapangan=<?php echo $lapangan['id_lapangan']; ?>" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 w-full sm:w-auto text-center">
+                                <a href="booking_regular.php?lapangan=<?php echo $lapangan['id_lapangan']; ?>"
+                                   class="px-4 py-2 rounded-md bg-stone-900 hover:bg-green-800 text-white text-xs font-semibold transition-colors">
                                     Booking
+                                </a>
+                            <?php else: ?>
+                                <a href="login.php"
+                                   class="px-4 py-2 rounded-md border border-stone-300 hover:border-stone-900 text-stone-800 text-xs font-semibold transition-colors">
+                                    Masuk
                                 </a>
                             <?php endif; ?>
                         </div>
@@ -327,40 +402,44 @@ $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Beka
                 </div>
             <?php endwhile; ?>
         </div>
-    </div>
+    </section>
 
     <!-- Paket Eskul -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-4 px-2">Paket Eskul</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
+    <section class="border-t border-stone-200 pt-10">
+        <div class="mb-6">
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400">03 / Sekolah</p>
+            <h2 class="text-2xl font-bold text-stone-900 mt-1">Paket Ekstrakurikuler</h2>
+            <p class="text-sm text-stone-500 mt-1">Paket latihan bulanan (3 jam per pertemuan).</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php while($paket = mysqli_fetch_assoc($result_eskul)): ?>
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-300">
+                <div class="bg-white rounded-lg border border-stone-200 overflow-hidden flex flex-col">
                     <?php if ($paket['gambar']): ?>
-                        <img src="uploads/paket/<?php echo $paket['gambar']; ?>" 
-                             alt="<?php echo htmlspecialchars($paket['nama_lapangan']); ?>"
+                        <img src="uploads/paket/<?php echo htmlspecialchars($paket['gambar'], ENT_QUOTES, 'UTF-8'); ?>" 
+                             alt="<?php echo htmlspecialchars($paket['nama_lapangan'], ENT_QUOTES, 'UTF-8'); ?>"
                              class="w-full h-48 object-cover">
                     <?php else: ?>
-                        <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
-                            <span class="text-gray-400">No Image</span>
+                        <div class="w-full h-48 bg-stone-100 flex items-center justify-center text-stone-400 text-xs">
+                            Foto belum tersedia
                         </div>
                     <?php endif; ?>
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold text-green-600 mb-3">
-                            <?php 
-                            echo htmlspecialchars($paket['nama_lapangan']);
-                            ?>
-                        </h3>
-                        <p class="text-gray-600 mb-4">3 jam per hari</p>
-                        <p class="text-2xl font-bold text-green-600 mb-4">
-                            Rp <?php echo number_format($paket['harga'], 0, ',', '.'); ?>
-                            <span class="text-sm font-normal">/bulan</span>
-                        </p>
-                        <div class="text-gray-600 mb-6 whitespace-pre-line">
-                            <?php echo $paket['keterangan']; ?>
+                    <div class="p-5 flex-1 flex flex-col">
+                        <div class="flex items-baseline justify-between gap-2 mb-1">
+                            <h3 class="text-base font-bold text-stone-900"><?php echo htmlspecialchars($paket['nama_lapangan'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                            <span class="text-xs text-stone-500">3 jam/hari</span>
+                        </div>
+                        <div class="mb-3 tabular-nums">
+                            <span class="text-xl font-bold text-green-800">
+                                Rp <?php echo number_format($paket['harga'], 0, ',', '.'); ?>
+                            </span>
+                            <span class="text-xs text-stone-400">/bulan</span>
+                        </div>
+                        <div class="text-sm text-stone-500 leading-relaxed mb-5 whitespace-pre-line flex-1">
+                            <?php echo htmlspecialchars($paket['keterangan'], ENT_QUOTES, 'UTF-8'); ?>
                         </div>
                         <?php if (isset($_SESSION['user_id'])): ?>
                             <a href="booking_eskul.php?lapangan=<?php echo $paket['lapangan_id']; ?>" 
-                               class="block text-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                               class="block text-center bg-stone-900 hover:bg-green-800 text-white text-xs font-semibold px-4 py-2.5 rounded-md transition-colors">
                                 Booking Paket Eskul
                             </a>
                         <?php endif; ?>
@@ -368,15 +447,18 @@ $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Beka
                 </div>
             <?php endwhile; ?>
         </div>
-        <p class="text-sm text-gray-600 mt-4">* Syarat: Wajib mencantumkan nama sekolah dan nomor telepon guru penanggung jawab</p>
-    </div>
+        <p class="text-xs text-stone-500 mt-3">* Wajib mencantumkan nama sekolah dan nomor telepon guru penanggung jawab.</p>
+    </section>
 
     <!-- Paket Turnamen -->
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-4 px-2">Paket Turnamen</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
+    <section class="border-t border-stone-200 pt-10">
+        <div class="mb-6">
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400">04 / Event</p>
+            <h2 class="text-2xl font-bold text-stone-900 mt-1">Paket Turnamen</h2>
+            <p class="text-sm text-stone-500 mt-1">Sewa harian untuk turnamen dengan durasi 1–7 hari.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php
-            // Query untuk mengambil harga turnamen per lapangan
             $query_turnamen = "SELECT 
                 l.id_lapangan, 
                 l.nama,
@@ -391,7 +473,6 @@ $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Beka
                 ORDER BY l.id_lapangan";
             $result_turnamen = mysqli_query($conn, $query_turnamen);
             
-            // Array deskripsi khusus untuk setiap lapangan turnamen
             $deskripsi_turnamen = [
                 1 => "Lapangan rumput sintetis ukuran standar dengan penerangan yang baik",
                 2 => "Lapangan vinyl berkualitas tinggi dengan atap tertutup",
@@ -403,39 +484,37 @@ $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Beka
             ];
 
             while($paket = mysqli_fetch_assoc($result_turnamen)): ?>
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-300">
+                <div class="bg-white rounded-lg border border-stone-200 overflow-hidden flex flex-col">
                     <?php if ($paket['gambar_sore']): ?>
-                        <img src="uploads/paket/<?php echo $paket['gambar_sore']; ?>" 
-                             alt="<?php echo htmlspecialchars($paket['nama']); ?>"
+                        <img src="uploads/paket/<?php echo htmlspecialchars($paket['gambar_sore'], ENT_QUOTES, 'UTF-8'); ?>" 
+                             alt="<?php echo htmlspecialchars($paket['nama'], ENT_QUOTES, 'UTF-8'); ?>"
                              class="w-full h-48 object-cover">
                     <?php else: ?>
-                        <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
-                            <span class="text-gray-400">No Image</span>
+                        <div class="w-full h-48 bg-stone-100 flex items-center justify-center text-stone-400 text-xs">
+                            Foto belum tersedia
                         </div>
                     <?php endif; ?>
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold text-green-600 mb-3">
-                            <?php echo $paket['nama']; ?>
-                        </h3>
-                        <p class="text-gray-600 mb-4">Durasi: 1-7 hari</p>
-                        <div class="space-y-2 mb-4">
-                            <p class="font-semibold">Paket Sore (10:00 - 17:00)</p>
-                            <p class="text-xl font-bold text-green-600">
-                                Rp <?php echo number_format($paket['harga_sore'], 0, ',', '.'); ?>
-                                <span class="text-sm font-normal">/hari</span>
-                            </p>
-                            <p class="font-semibold mt-4">Paket Malam (10:00 - 21:00)</p>
-                            <p class="text-xl font-bold text-green-600">
-                                Rp <?php echo number_format($paket['harga_malam'], 0, ',', '.'); ?>
-                                <span class="text-sm font-normal">/hari</span>
-                            </p>
+                    <div class="p-5 flex-1 flex flex-col">
+                        <div class="flex items-baseline justify-between gap-2 mb-3">
+                            <h3 class="text-base font-bold text-stone-900"><?php echo htmlspecialchars($paket['nama'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                            <span class="text-xs text-stone-500">1–7 hari</span>
                         </div>
-                        <div class="text-gray-600 mb-6">
-                            <?php echo isset($deskripsi_turnamen[$paket['id_lapangan']]) ? $deskripsi_turnamen[$paket['id_lapangan']] : 'Lapangan futsal berkualitas tinggi dengan fasilitas lengkap'; ?>
+                        <div class="divide-y divide-stone-100 border-y border-stone-100 mb-4 text-sm tabular-nums">
+                            <div class="py-2 flex justify-between items-center">
+                                <span class="text-xs text-stone-500">Sore (10:00–17:00)</span>
+                                <span class="font-bold text-stone-900">Rp <?php echo number_format($paket['harga_sore'] ?? 0, 0, ',', '.'); ?>/hr</span>
+                            </div>
+                            <div class="py-2 flex justify-between items-center">
+                                <span class="text-xs text-stone-500">Malam (10:00–21:00)</span>
+                                <span class="font-bold text-stone-900">Rp <?php echo number_format($paket['harga_malam'] ?? 0, 0, ',', '.'); ?>/hr</span>
+                            </div>
                         </div>
+                        <p class="text-sm text-stone-500 leading-relaxed mb-5 flex-1">
+                            <?php echo htmlspecialchars(isset($deskripsi_turnamen[$paket['id_lapangan']]) ? $deskripsi_turnamen[$paket['id_lapangan']] : 'Lapangan futsal berkualitas tinggi dengan fasilitas lengkap', ENT_QUOTES, 'UTF-8'); ?>
+                        </p>
                         <?php if (isset($_SESSION['user_id'])): ?>
                             <a href="booking_turnamen.php?lapangan=<?php echo $paket['id_lapangan']; ?>" 
-                               class="block text-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                               class="block text-center bg-stone-900 hover:bg-green-800 text-white text-xs font-semibold px-4 py-2.5 rounded-md transition-colors">
                                 Booking Paket Turnamen
                             </a>
                         <?php endif; ?>
@@ -443,76 +522,101 @@ $about = 'Futsal Sayan Bekasi adalah tempat terbaik untuk bermain futsal di Beka
                 </div>
             <?php endwhile; ?>
         </div>
-        <p class="text-sm text-gray-600 mt-4 space-y-1">
-            <p>* Tersedia paket 1-7 hari</p>
-            <p>* Syarat: Wajib mencantumkan kontak panitia dan mengirimkan informasi turnamen ke admin via WhatsApp</p>
-        </p>
-    </div>
+        <div class="text-xs text-stone-500 mt-3 space-y-0.5">
+            <p>* Tersedia paket 1–7 hari. Wajib mencantumkan kontak panitia dan konfirmasi ke admin via WhatsApp.</p>
+        </div>
+    </section>
 
-    <!-- Informasi Tambahan -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div class="bg-white rounded-lg shadow-md p-6 text-center md:text-left border border-gray-300">
-            <i class="fas fa-clock text-4xl text-green-600 mb-4"></i>
-            <h3 class="text-xl font-semibold mb-2">Jam Operasional</h3>
-            <p class="text-gray-600">Setiap hari: 08:00 - 23:00 WIB</p>
+    <!-- Lokasi & Tentang Kami Section -->
+    <section class="border-t border-stone-200 pt-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400">05 / Tentang</p>
+            <h2 class="text-2xl font-bold text-stone-900 mt-1 mb-4">Tentang Futsal Sayan</h2>
+            <p class="text-sm sm:text-base text-stone-600 leading-relaxed"><?php echo nl2br(htmlspecialchars($about, ENT_QUOTES, 'UTF-8')); ?></p>
+            <div class="mt-6 pt-5 border-t border-stone-200 text-xs text-stone-500 space-y-1">
+                <p class="font-semibold text-stone-800">Alamat</p>
+                <p>Jl. Raya Mustikasari No.34, RT.002/RW.004, Mustikasari, Kec. Mustika Jaya, Kota Bekasi, Jawa Barat 17157</p>
+            </div>
         </div>
-        
-        <div class="bg-white rounded-lg shadow-md p-6 text-center md:text-left border border-gray-300">
-            <i class="fas fa-money-bill-wave text-4xl text-green-600 mb-4"></i>
-            <h3 class="text-xl font-semibold mb-2">Metode Pembayaran</h3>
-            <p class="text-gray-600">Transfer Bank, QRIS, atau Bayar di Tempat</p>
-        </div>
-        
-        <div class="bg-white rounded-lg shadow-md p-6 text-center md:text-left border border-gray-300">
-            <i class="fas fa-phone text-4xl text-green-600 mb-4"></i>
-            <h3 class="text-xl font-semibold mb-2">Kontak</h3>
-            <p class="text-gray-600">Telp: 0857-4851-5801</p>
-        </div>
-    </div>
 
-    <!-- Modal Detail Booking -->
-    <div id="bookingDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full p-2 sm:p-4">
-        <div class="relative top-20 mx-auto p-4 sm:p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-            <div class="mt-3">
-                <h3 class="text-lg font-semibold mb-2" id="modalDate"></h3>
-                <div id="modalContent" class="mt-2 space-y-3">
-                    <!-- Content will be inserted here by JavaScript -->
+        <div class="bg-white rounded-lg border border-stone-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-stone-900">Peta Lokasi</h3>
+                <a href="https://share.google/BQBFVJJ2jyMocShFU" target="_blank" rel="noopener noreferrer"
+                   class="text-xs font-semibold text-green-800 hover:underline">
+                    Buka di Google Maps &rarr;
+                </a>
+            </div>
+            <div class="rounded overflow-hidden border border-stone-200">
+                <iframe
+                    src="https://maps.google.com/maps?q=Sayan+Futsal+Family,+Jl.+Raya+Mustikasari+No.34,+Mustika+Jaya,+Bekasi&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                    width="100%" height="260" style="border:0; min-width:200px; min-height:220px; display:block;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hubungi Kami Section -->
+    <section id="hubungi-kami" class="border-t border-stone-200 pt-10">
+        <div class="bg-white border border-stone-200 rounded-lg p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-5 flex items-center justify-center">
+                <img src="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/assets/images/Contact_us.svg"
+                     alt="Hubungi Futsal Sayan Bekasi"
+                     class="w-full max-w-[240px] sm:max-w-xs h-auto">
+            </div>
+            <div class="lg:col-span-7 space-y-4">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-widest text-stone-400">06 / Kontak</p>
+                    <h2 class="text-2xl font-bold text-stone-900 mt-1">Ada Pertanyaan atau Mau Booking Turnamen?</h2>
+                    <p class="text-sm text-stone-500 leading-relaxed mt-2">
+                        Tim admin Futsal Sayan siap membantu konfirmasi pembayaran, jadwal ekstrakurikuler sekolah, maupun reservasi turnamen.
+                    </p>
                 </div>
-                <div class="mt-4">
-                    <button onclick="closeModal()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full">
-                        Tutup
-                    </button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-sm">
+                    <div class="p-3.5 rounded-md bg-stone-50 border border-stone-200">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">WhatsApp / Telepon</p>
+                        <p class="font-bold text-stone-900 mt-0.5 tabular-nums">0857-4851-5801</p>
+                    </div>
+                    <div class="p-3.5 rounded-md bg-stone-50 border border-stone-200">
+                        <p class="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Jam Operasional</p>
+                        <p class="font-bold text-stone-900 mt-0.5">Setiap Hari, 08:00 – 23:00 WIB</p>
+                    </div>
+                </div>
+                <div class="pt-1 flex flex-wrap gap-3">
+                    <a href="https://wa.me/6285748515801" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md bg-green-900 hover:bg-green-800 text-white text-sm font-semibold transition-colors">
+                        <i class="fab fa-whatsapp text-base"></i> Chat via WhatsApp
+                    </a>
+                    <a href="https://share.google/BQBFVJJ2jyMocShFU" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center justify-center px-5 py-2.5 rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-800 text-sm font-medium transition-colors">
+                        Petunjuk Arah
+                    </a>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 </div>
 
-<!-- Lokasi & Tentang Kami Section -->
-<div class="container mx-auto my-12 flex flex-col md:flex-row items-start justify-center gap-8 px-2">
-  <!-- Tentang Kami -->
-  <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 sm:p-6 w-full max-w-2xl md:w-1/2">
-    <h2 class="text-xl font-bold text-green-700 mb-4">Tentang Kami</h2>
-    <p class="text-gray-700 text-base"><?php echo nl2br(htmlspecialchars($about)); ?></p>
-  </div>
-  <!-- Lokasi Futsal Sayan -->
-  <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 sm:p-6 w-full max-w-2xl md:w-1/2">
-    <div class="flex items-center mb-4">
-      <svg class="w-7 h-7 text-green-600 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c1.104 0 2-.896 2-2s-.896-2-2-2-2 .896-2 2 .896 2 2 2zm0 0c-3.866 0-7 2.239-7 5v2a1 1 0 001 1h12a1 1 0 001-1v-2c0-2.761-3.134-5-7-5z"/></svg>
-      <h2 class="text-xl font-bold text-gray-800">Lokasi Futsal Sayan</h2>
+<!-- Modal Detail Booking (Bottom sheet on mobile, centered on desktop) -->
+<div id="bookingDetailModal" class="fixed inset-0 bg-stone-900/50 hidden z-50 p-0 sm:p-4">
+    <div class="min-h-full flex items-end sm:items-center justify-center">
+        <div class="w-full sm:max-w-md bg-white border-t sm:border border-stone-200 rounded-t-2xl sm:rounded-lg shadow-xl p-5 sm:p-6">
+            <div class="w-10 h-1 bg-stone-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+            <div class="flex items-center justify-between pb-3 border-b border-stone-200">
+                <h3 class="text-base font-bold text-stone-900" id="modalDate"></h3>
+                <button onclick="closeModal()" class="w-9 h-9 -mr-1.5 flex items-center justify-center rounded-md text-stone-400 hover:text-stone-900 active:bg-stone-100">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="modalContent" class="mt-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                <!-- Content will be inserted here by JavaScript -->
+            </div>
+            <div class="mt-5">
+                <button onclick="closeModal()" class="bg-stone-900 hover:bg-stone-800 active:bg-stone-700 text-white text-sm font-medium px-4 py-3 sm:py-2.5 rounded-md w-full transition-colors">
+                    Tutup
+                </button>
+            </div>
+        </div>
     </div>
-    <div class="rounded-lg overflow-hidden border border-gray-300">
-      <iframe
-        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d127.123456789!2d112.3456789!3d-7.1234567!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f1a1b1b1b1b1%3A0x123456789abcdef!2sSayan%20Futsal%20Family!5e0!3m2!1sid!2sid!4v1710000000000!5m2!1sid!2sid"
-        width="100%" height="320" style="border:0; min-width:200px; min-height:220px; display:block;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-    </div>
-    <div class="flex justify-center mt-4">
-      <a href="https://maps.app.goo.gl/7WqnEhBacYTYrwo17" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow hover:bg-green-700 transition">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 12.414a2 2 0 00-2.828 0l-4.243 4.243m0 0A8 8 0 1112 20a8 8 0 01-5.657-2.343z"/></svg>
-        Buka di Google Maps
-      </a>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -589,7 +693,7 @@ function closeModal() {
 
 // Close modal when clicking outside
 document.getElementById('bookingDetailModal').addEventListener('click', function(e) {
-    if (e.target === this) {
+    if (e.target === this || e.target === this.firstElementChild) {
         closeModal();
     }
 });

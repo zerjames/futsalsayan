@@ -24,6 +24,9 @@ if ($_SESSION['role'] == 'admin') {
     }
 }
 
+// Jalankan auto-cancel sebelum cek jadwal / proses booking agar slot kadaluarsa langsung kosong
+autoCancelUnpaidBookings($conn);
+
 // Cek apakah ada parameter lapangan
 if (!isset($_GET['lapangan'])) {
     header("Location: index.php");
@@ -48,26 +51,15 @@ if ($_SESSION['role'] == 'admin' && isset($_POST['selected_user_id'])) {
     $user_id = mysqli_real_escape_string($conn, $_POST['selected_user_id']);
 }
 
+// Cek apakah user (non-admin) masih memiliki booking aktif (maksimal 1 booking aktif per akun)
+$active_booking = ($_SESSION['role'] != 'admin') ? getUserActiveBooking($conn, $user_id) : null;
+
 // Proses booking
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['tanggal'])) {
-        // Cek booking aktif user (status pending)
-        if ($_SESSION['role'] != 'admin') {
-            $cek_query = "
-                (SELECT COUNT(*) as total FROM booking WHERE user_id = '$user_id' AND status_pembayaran = 'pending')
-                UNION ALL
-                (SELECT COUNT(*) as total FROM booking_eskul WHERE user_id = '$user_id' AND status_pembayaran = 'pending')
-                UNION ALL
-                (SELECT COUNT(*) as total FROM booking_turnamen WHERE user_id = '$user_id' AND status_pembayaran = 'pending')
-            ";
-            $cek_result = mysqli_query($conn, $cek_query);
-            $total_pending = 0;
-            while ($row = mysqli_fetch_assoc($cek_result)) {
-                $total_pending += $row['total'];
-            }
-            if ($total_pending > 0) {
-                $error = 'Anda masih memiliki booking yang belum dikonfirmasi. Silakan tunggu konfirmasi admin sebelum melakukan booking lagi.';
-            }
+        // Cek batas maksimal 1 booking aktif per akun (non-admin)
+        if ($_SESSION['role'] != 'admin' && $active_booking) {
+            $error = 'Setiap akun hanya diperbolehkan memiliki 1 booking aktif. Anda masih memiliki booking aktif (' . $active_booking['nama_lapangan'] . ' - ' . date('d/m/Y', strtotime($active_booking['tanggal'])) . ' ' . date('H:i', strtotime($active_booking['jam_mulai'])) . ' WIB). Selesaikan atau batalkan booking tersebut terlebih dahulu.';
         }
 
         $tanggal = mysqli_real_escape_string($conn, $_POST['tanggal']);
@@ -77,7 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             !isset($error) && isset($_POST['jam_mulai']) && isset($_POST['jam_selesai']) && 
             isset($_POST['metode_pembayaran'])
         ) {
-            
+            if (!validate_csrf_request()) {
+                $error = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.";
+            } else {
             $jam_mulai = mysqli_real_escape_string($conn, $_POST['jam_mulai']);
             $jam_selesai = mysqli_real_escape_string($conn, $_POST['jam_selesai']);
             // Jika admin yang booking, set metode pembayaran COD dan status langsung dikonfirmasi
@@ -145,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $error = "Terjadi kesalahan. Silakan coba lagi.";
                 }
             }
+            }
         }
     }
 }
@@ -153,39 +148,59 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 include 'includes/header.php';
 ?>
 
-<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6 m-2 sm:m-0">
-    <!-- Tombol Kembali ke Beranda -->
-    <a href="index.php" class="inline-flex items-center bg-gray-200 text-green-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 mb-4">
-        <i class="fas fa-arrow-left mr-2"></i> Kembali ke Beranda
+<div class="max-w-2xl mx-auto">
+    <a href="index.php" class="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors mb-5">
+        &larr; Kembali ke Beranda
     </a>
-    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6 my-4">
-        <h2 class="text-2xl font-bold text-center text-green-600 mb-2">Booking Lapangan <?php echo htmlspecialchars($lapangan['nama']); ?></h2>
-        <div class="text-center mb-6">
-            <!-- Link ke lihat_jadwal.php dihapus sesuai permintaan -->
+
+    <div class="bg-white rounded-lg border border-stone-200 p-6 sm:p-8">
+        <div class="pb-5 border-b border-stone-200 mb-6 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
+            <div>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-green-800">Booking Regular</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-stone-900 mt-0.5"><?php echo htmlspecialchars($lapangan['nama'], ENT_QUOTES, 'UTF-8'); ?></h2>
+            </div>
+            <p class="text-sm font-bold text-stone-900 tabular-nums">
+                Rp <?php echo number_format($lapangan['harga_per_jam'], 0, ',', '.'); ?><span class="text-xs font-normal text-stone-500">/jam</span>
+            </p>
         </div>
-        
+
         <?php if (isset($error)): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <?php echo $error; ?>
+            <div class="bg-red-50 border-l-4 border-red-700 text-red-900 px-4 py-3 text-sm mb-5">
+                <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="" class="space-y-4" id="bookingForm">
+        <?php if ($active_booking && !isset($error)): ?>
+            <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-md p-4 text-sm mb-5">
+                <p class="font-bold">Batas 1 Booking Aktif per Akun</p>
+                <p class="text-xs sm:text-sm mt-1">
+                    Anda masih memiliki booking aktif di <strong><?php echo htmlspecialchars($active_booking['nama_lapangan'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                    (<?php echo htmlspecialchars($active_booking['jenis'], ENT_QUOTES, 'UTF-8'); ?>, <?php echo date('d/m/Y', strtotime($active_booking['tanggal'])); ?>).
+                    Selesaikan jadwal atau batalkan booking tersebut sebelum memesan lagi.
+                </p>
+                <a href="riwayat.php" class="inline-block mt-3 px-3.5 py-1.5 rounded-md bg-stone-900 hover:bg-green-800 text-white text-xs font-semibold transition-colors">
+                    Lihat Riwayat Booking
+                </a>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" action="" class="space-y-5" id="bookingForm">
+            <?php echo csrf_field(); ?>
             <?php if ($_SESSION['role'] == 'admin'): ?>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="selected_user_id">
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="selected_user_id">
                         Pilih User
                     </label>
-                    <select class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    <select class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm bg-white focus:outline-none focus:border-stone-900"
                             id="selected_user_id" 
                             name="selected_user_id" 
                             required>
                         <option value="">Pilih Admin/User</option>
-                        <option value="<?php echo $_SESSION['user_id']; ?>">Admin (<?php echo $_SESSION['username']; ?>)</option>
+                        <option value="<?php echo $_SESSION['user_id']; ?>">Admin (<?php echo htmlspecialchars($_SESSION['username'], ENT_QUOTES, 'UTF-8'); ?>)</option>
                         <optgroup label="Users">
                             <?php foreach ($users as $user): ?>
                                 <option value="<?php echo $user['id_user']; ?>">
-                                    <?php echo $user['nama'] . ' (' . $user['username'] . ')'; ?>
+                                    <?php echo htmlspecialchars($user['nama'] . ' (' . $user['username'] . ')', ENT_QUOTES, 'UTF-8'); ?>
                                 </option>
                             <?php endforeach; ?>
                         </optgroup>
@@ -194,33 +209,33 @@ include 'includes/header.php';
             <?php endif; ?>
 
             <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="tanggal">
+                <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="tanggal">
                     Tanggal Main
                 </label>
-                <input class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                <input class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900"
                        id="tanggal" 
                        type="date" 
                        name="tanggal" 
-                       value="<?php echo isset($_POST['tanggal']) ? $_POST['tanggal'] : date('Y-m-d'); ?>"
+                       value="<?php echo isset($_POST['tanggal']) ? htmlspecialchars($_POST['tanggal'], ENT_QUOTES, 'UTF-8') : date('Y-m-d'); ?>"
                        min="<?php echo date('Y-m-d'); ?>"
                        max="<?php echo date('Y-m-d', strtotime('+21 days')); ?>"
                        required>
             </div>
 
             <!-- Jadwal Booking yang Ada -->
-            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h3 class="text-lg font-semibold mb-3">Jadwal Booking yang Ada:</h3>
-                <div class="space-y-2" id="jadwalContainer">
+            <div class="p-4 bg-stone-50 border border-stone-200 rounded-md">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2.5">Jadwal Terisi pada Tanggal Ini</h3>
+                <div class="space-y-2 text-sm" id="jadwalContainer">
                     <!-- Jadwal booking akan dimuat di sini oleh JavaScript -->
                 </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="jam_mulai">
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="jam_mulai">
                         Jam Mulai
                     </label>
-                    <select class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    <select class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm bg-white focus:outline-none focus:border-stone-900"
                             id="jam_mulai" 
                             name="jam_mulai" 
                             required>
@@ -234,40 +249,40 @@ include 'includes/header.php';
                         }
                         ?>
                     </select>
-                    <p class="text-sm text-gray-500 mt-1">Buka: 08:00 - 23:00</p>
+                    <p class="text-xs text-stone-400 mt-1">Buka: 08:00 – 23:00 WIB</p>
                 </div>
 
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="jam_selesai">
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="jam_selesai">
                         Jam Selesai
                     </label>
-                    <select class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    <select class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm bg-white focus:outline-none focus:border-stone-900"
                            id="jam_selesai" 
                            name="jam_selesai" 
                            required>
                         <option value="">Pilih Jam Selesai</option>
                     </select>
-                    <p class="text-sm text-gray-500 mt-1">Tutup: 23:00</p>
+                    <p class="text-xs text-stone-400 mt-1">Tutup: 23:00 WIB</p>
                 </div>
             </div>
 
             <?php if ($_SESSION['role'] != 'admin'): ?>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-2">
                         Metode Pembayaran
                     </label>
-                    <div class="space-y-3">
-                        <label class="flex items-center p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="transfer" required class="mr-3"> 
-                            <span><i class="fas fa-university mr-2"></i>Transfer Bank</span>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-3.5 border border-stone-200 rounded-md hover:border-stone-400 active:bg-stone-50 cursor-pointer text-sm min-h-[48px]">
+                            <input type="radio" name="metode_pembayaran" value="transfer" required class="mr-3 w-4 h-4 accent-green-800"> 
+                            <span class="text-stone-800 font-medium">Transfer Bank (SeaBank)</span>
                         </label>
-                        <label class="flex items-center p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="qris" required class="mr-3"> 
-                            <span><i class="fas fa-qrcode mr-2"></i>QRIS (OVO, GoPay, Dana, dll)</span>
+                        <label class="flex items-center p-3.5 border border-stone-200 rounded-md hover:border-stone-400 active:bg-stone-50 cursor-pointer text-sm min-h-[48px]">
+                            <input type="radio" name="metode_pembayaran" value="qris" required class="mr-3 w-4 h-4 accent-green-800"> 
+                            <span class="text-stone-800 font-medium">QRIS (OVO, GoPay, DANA, ShopeePay)</span>
                         </label>
-                        <label class="flex items-center p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="cod" required class="mr-3"> 
-                            <span><i class="fas fa-money-bill-wave mr-2"></i>Bayar di Tempat (COD)</span>
+                        <label class="flex items-center p-3.5 border border-stone-200 rounded-md hover:border-stone-400 active:bg-stone-50 cursor-pointer text-sm min-h-[48px]">
+                            <input type="radio" name="metode_pembayaran" value="cod" required class="mr-3 w-4 h-4 accent-green-800"> 
+                            <span class="text-stone-800 font-medium">Bayar di Tempat (COD)</span>
                         </label>
                     </div>
                 </div>
@@ -275,23 +290,18 @@ include 'includes/header.php';
                 <input type="hidden" name="metode_pembayaran" value="cod">
             <?php endif; ?>
 
-            <!-- Panduan Booking -->
-            <div class="bg-blue-50 p-4 rounded-lg mb-4">
-                <h4 class="font-semibold text-blue-800 mb-2">
-                    <i class="fas fa-info-circle mr-2"></i>Panduan Booking:
-                </h4>
-                <ul class="text-sm text-blue-700 space-y-1">
-                    <li>• Minimal durasi booking 1 jam</li>
-                    <li>• Jam operasional: 08:00 - 23:00</li>
-                    <li>• Booking dapat dilakukan maksimal 7 hari ke depan</li>
-                    <li>• Upload bukti pembayaran setelah invoice keluar</li>
-                    <li>• Untuk pembayaran COD, harap datang 30 menit sebelum jadwal</li>
-                </ul>
+            <!-- Ketentuan Booking -->
+            <div class="p-4 bg-stone-50 border border-stone-200 rounded-md text-xs text-stone-600 space-y-1">
+                <p class="font-semibold text-stone-800 mb-1.5">Ketentuan Booking</p>
+                <p>&bull; Minimal durasi booking 1 jam (jam operasional 08:00 – 23:00 WIB).</p>
+                <p>&bull; Diskon 5% untuk hari Minggu dan diskon 5% untuk durasi 2 jam atau lebih.</p>
+                <p>&bull; <strong class="text-stone-800">Booking mendadak (hari yang sama, &le; 3 jam sebelum main):</strong> batas pembayaran &amp; konfirmasi admin hanya <strong>15 menit</strong>, lewat dari itu otomatis dibatalkan.</p>
+                <p>&bull; Booking normal: batas pembayaran &amp; konfirmasi admin 2 jam. Untuk COD harap datang 20 menit sebelum jadwal.</p>
             </div>
 
-            <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline w-full text-center text-lg"
-                    type="submit">
-                Booking Sekarang
+            <button class="w-full <?php echo $active_booking ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'bg-stone-900 hover:bg-green-800 text-white'; ?> font-semibold py-2.5 px-4 rounded-md transition-colors text-sm"
+                    type="submit" <?php echo $active_booking ? 'disabled' : ''; ?>>
+                <?php echo $active_booking ? 'Selesaikan Booking Aktif Terlebih Dahulu' : 'Lanjutkan Booking'; ?>
             </button>
         </form>
     </div>

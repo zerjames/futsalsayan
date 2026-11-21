@@ -25,6 +25,11 @@ if (!$user) {
 
 // Proses update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_request()) {
+        $_SESSION['error'] = 'Token keamanan (CSRF) tidak valid atau telah kedaluwarsa.';
+        header('Location: edit_user.php?id=' . $user_id);
+        exit();
+    }
     $nama = trim($_POST['nama']);
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
@@ -80,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (!empty($password_baru)) {
         $q .= ", password=?";
-        $params[] = $password_baru;
+        $params[] = password_hash($password_baru, PASSWORD_DEFAULT);
         $types .= 's';
     }
     $q .= " WHERE id_user=?";
@@ -101,60 +106,84 @@ $foto = !empty($user['foto_profil']) ? '../uploads/profile/' . $user['foto_profi
 // Include header setelah semua logic PHP dan redirect selesai
 include '../includes/header.php';
 ?>
-<div class="min-h-screen flex items-center justify-center bg-gray-100">
-  <div class="w-full max-w-xl bg-white rounded-xl shadow-lg p-8 my-8">
-    <a href="dashboard.php?tab=kelola_user" class="inline-flex items-center mb-4 px-4 py-2 bg-gray-200 text-green-700 font-semibold rounded-lg shadow hover:bg-gray-300 transition">
-      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-      Kembali ke Kelola User
+<div class="max-w-2xl mx-auto">
+    <a href="dashboard.php?tab=kelola_user" class="inline-flex items-center gap-2 mb-5 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">
+        &larr; Kembali ke Kelola User
     </a>
-    <h2 class="text-2xl font-bold mb-6 text-green-700 text-center">Edit Profil User</h2>
-    <div class="flex justify-center mb-4">
-      <?php if ($user['is_verified'] == 1): ?>
-        <span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full border border-green-300">Terverifikasi</span>
-      <?php else: ?>
-        <span class="inline-block bg-red-100 text-red-800 text-xs font-semibold px-3 py-1 rounded-full border border-red-300">Belum Verifikasi</span>
-      <?php endif; ?>
+
+    <div class="bg-white rounded-lg border border-stone-200 p-6 sm:p-8">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-stone-200 mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-stone-900">Edit Profil User</h2>
+                <p class="text-sm text-stone-500 mt-0.5">Perbarui data akun pengguna</p>
+            </div>
+            <?php if ($user['is_verified'] == 1): ?>
+                <span class="inline-block bg-green-50 text-green-800 text-xs font-medium px-2.5 py-1 rounded border border-green-200">Terverifikasi</span>
+            <?php else: ?>
+                <span class="inline-block bg-red-50 text-red-700 text-xs font-medium px-2.5 py-1 rounded border border-red-200">Belum Verifikasi</span>
+            <?php endif; ?>
+        </div>
+
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="mb-5 px-4 py-3 text-sm border-l-4 bg-red-50 text-red-900 border-red-700">
+                <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" enctype="multipart/form-data" class="space-y-4">
+            <?php echo csrf_field(); ?>
+            <div class="flex flex-col sm:flex-row items-center gap-4 pb-5 border-b border-stone-200">
+                <img src="<?php echo htmlspecialchars($foto, ENT_QUOTES, 'UTF-8'); ?>" alt="Foto Profil" class="w-16 h-16 rounded-full object-cover border border-stone-200" id="previewFoto">
+                <div class="text-center sm:text-left w-full sm:w-auto">
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1">Foto Profil</label>
+                    <input type="file" name="foto_profil" accept="image/*" class="text-xs text-stone-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-stone-300 file:text-xs file:font-medium file:bg-white file:text-stone-700 hover:file:bg-stone-50 cursor-pointer max-w-full" onchange="previewImage(event)">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Nama</label>
+                    <input type="text" name="nama" value="<?php echo htmlspecialchars($user['nama'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2.5 sm:py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Username</label>
+                    <input type="text" name="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2.5 sm:py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Email</label>
+                    <input type="email" name="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2.5 sm:py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Nomor Telepon</label>
+                    <input type="text" name="telepon" value="<?php echo htmlspecialchars($user['telepon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2.5 sm:py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Alamat</label>
+                <textarea name="alamat" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" rows="2" required><?php echo htmlspecialchars($user['alamat'], ENT_QUOTES, 'UTF-8'); ?></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">
+                    Password Baru <span class="text-stone-400 font-normal normal-case">(Opsional)</span>
+                </label>
+                <input type="password" name="password_baru" class="w-full px-3 py-2.5 sm:py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" placeholder="Biarkan kosong jika tidak ingin mengubah password">
+            </div>
+
+            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-stone-100">
+                <a href="dashboard.php?tab=kelola_user" class="px-5 py-2.5 sm:py-2 rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-700 text-sm font-medium text-center transition-colors">
+                    Batal
+                </a>
+                <button type="submit" class="bg-green-900 hover:bg-green-800 text-white text-sm font-semibold px-5 py-2.5 sm:py-2 rounded-md transition-colors">
+                    Simpan Perubahan
+                </button>
+            </div>
+        </form>
     </div>
-    <?php if (isset($_SESSION['error'])): ?>
-      <div class="mb-4 px-4 py-3 rounded bg-red-100 text-red-800 border border-red-300">
-        <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-      </div>
-    <?php endif; ?>
-    <form method="POST" enctype="multipart/form-data" class="space-y-4">
-      <div class="flex flex-col items-center mb-4">
-        <img src="<?php echo $foto; ?>" alt="Foto Profil" class="w-24 h-24 rounded-full object-cover border mb-2" id="previewFoto">
-        <label class="block text-sm font-medium text-gray-700">Foto Profil</label>
-        <input type="file" name="foto_profil" accept="image/*" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" onchange="previewImage(event)">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nama</label>
-        <input type="text" name="nama" value="<?php echo htmlspecialchars($user['nama']); ?>" class="input input-bordered w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-        <input type="text" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" class="input input-bordered w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-        <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" class="input input-bordered w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nomor Telepon</label>
-        <input type="text" name="telepon" value="<?php echo htmlspecialchars($user['telepon']); ?>" class="input input-bordered w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
-        <textarea name="alamat" class="input input-bordered w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400" rows="2" required><?php echo htmlspecialchars($user['alamat']); ?></textarea>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Password Baru <span class="text-gray-400 text-xs">(Opsional)</span></label>
-        <input type="password" name="password_baru" class="input input-bordered w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400" placeholder="Biarkan kosong jika tidak ingin mengubah password">
-      </div>
-      <div class="flex justify-end">
-        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg shadow">Simpan Perubahan</button>
-      </div>
-    </form>
-  </div>
 </div>
 <script>
 function previewImage(event) {

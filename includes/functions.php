@@ -1,6 +1,6 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+require_once __DIR__ . '/security.php';
+
 // Fungsi untuk validasi nama (hanya huruf alphabet dan spasi)
 function validateName($name) {
     return preg_match("/^[a-zA-Z\s]+$/", $name);
@@ -203,33 +203,131 @@ function cekKonflikBooking($conn, $lapangan_id, $tanggal, $jam_mulai, $jam_seles
     ];
 }
 
-// Fungsi auto cancel booking yang belum dibayar/konfirmasi admin dalam 2 jam
-function autoCancelUnpaidBookings($conn) {
-    // Debug: log saat fungsi dijalankan
-    file_put_contents(__DIR__.'/debug_auto_cancel.log', date('Y-m-d H:i:s')." - Fungsi dijalankan\n", FILE_APPEND);
-    $now = date('Y-m-d H:i:s');
-    $tables = [
-        ['table'=>'booking', 'date_field'=>'tanggal_booking'],
-        ['table'=>'booking_eskul', 'date_field'=>'tanggal_booking'],
-        ['table'=>'booking_turnamen', 'date_field'=>'tanggal_booking']
+// Helper untuk menghitung batas waktu pembayaran & konfirmasi admin
+// Aturan: jika booking untuk hari yang sama dan jarak waktu main <= 3 jam (180 menit) sejak waktu booking -> batas 15 menit.
+// Selain itu -> batas normal 2 jam (120 menit).
+function getBookingPaymentDeadline($tanggal_booking, $tanggal_main, $jam_mulai) {
+    date_default_timezone_set('Asia/Jakarta');
+    $booking_ts = strtotime($tanggal_booking);
+    $play_ts = strtotime(date('Y-m-d', strtotime($tanggal_main)) . ' ' . $jam_mulai);
+    $is_same_day = (date('Y-m-d', $booking_ts) === date('Y-m-d', $play_ts));
+    $minutes_before_play = ($play_ts - $booking_ts) / 60;
+
+    $is_urgent = ($is_same_day && $minutes_before_play <= 180);
+    $limit_minutes = $is_urgent ? 15 : 120;
+    $deadline_ts = $booking_ts + ($limit_minutes * 60);
+    $remaining_seconds = max(0, $deadline_ts - time());
+
+    return [
+        'is_urgent' => $is_urgent,
+        'limit_minutes' => $limit_minutes,
+        'deadline_timestamp' => $deadline_ts,
+        'deadline_formatted' => date('H:i', $deadline_ts),
+        'remaining_seconds' => $remaining_seconds
     ];
+}
+
+// Fungsi auto cancel booking yang belum dibayar & dikonfirmasi admin melewati batas waktu:
+// - 15 menit jika booking hari yang sama dengan jarak <= 3 jam sebelum jam main
+// - 2 jam (120 menit) untuk booking normal
+function autoCancelUnpaidBookings($conn) {
+    static $already_ran = false;
+    if ($already_ran || !$conn) {
+        return;
+    }
+    $already_ran = true;
+
+    date_default_timezone_set('Asia/Jakarta');
+    $now = date('Y-m-d H:i:s');
+
+    $tables = [
+        ['table' => 'booking',          'book_field' => 'tanggal_booking', 'play_date_field' => 'tanggal_main',  'play_time_field' => 'jam_mulai'],
+        ['table' => 'booking_eskul',    'book_field' => 'tanggal_booking', 'play_date_field' => 'tanggal_mulai', 'play_time_field' => 'jam_mulai'],
+        ['table' => 'booking_turnamen', 'book_field' => 'tanggal_booking', 'play_date_field' => 'tanggal_mulai', 'play_time_field' => 'jam_mulai']
+    ];
+
     foreach ($tables as $tb) {
         $table = $tb['table'];
-        $date_field = $tb['date_field'];
-        // Auto-cancel booking yang belum dibayar/konfirmasi admin dalam 2 jam
-        $sql = "UPDATE $table SET status_pembayaran='dibatalkan' WHERE status_pembayaran='pending' AND TIMESTAMPDIFF(HOUR, $date_field, '$now') >= 2";
-        // Debug: log query SQL
-        file_put_contents(__DIR__.'/debug_auto_cancel.log', $sql . "\n", FILE_APPEND);
+        $book_field = $tb['book_field'];
+        $play_date = $tb['play_date_field'];
+        $play_time = $tb['play_time_field'];
+
+        $sql = "UPDATE $table
+                SET status_pembayaran = 'dibatalkan'
+                WHERE status_pembayaran = 'pending'
+                AND (
+                    (
+                        DATE($play_date) = DATE($book_field)
+                        AND TIMESTAMPDIFF(MINUTE, $book_field, CONCAT($play_date, ' ', $play_time)) <= 180
+                        AND TIMESTAMPDIFF(MINUTE, $book_field, '$now') >= 15
+                    )
+                    OR
+                    (
+                        TIMESTAMPDIFF(MINUTE, $book_field, '$now') >= 120
+                    )
+                )";
         mysqli_query($conn, $sql);
-        $affected = mysqli_affected_rows($conn);
-        file_put_contents(__DIR__.'/debug_auto_cancel.log', "Baris diupdate: $affected\n", FILE_APPEND);
-    }
-    // Debug: tampilkan data booking yang masih pending
-    $result = mysqli_query($conn, "SELECT id_booking, tanggal_booking, status_pembayaran FROM booking WHERE status_pembayaran='pending'");
-    while ($row = mysqli_fetch_assoc($result)) {
-        file_put_contents(__DIR__.'/debug_auto_cancel.log', 'ID: '.$row['id_booking'].' tanggal_booking: '.$row['tanggal_booking'].'\n', FILE_APPEND);
     }
 }
+// Cek apakah user (non-admin) masih memiliki booking aktif (pending ATAU dikonfirmasi yang jadwalnya belum selesai)
+// Mencegah spam booking: maksimal 1 booking aktif per akun.
+function getUserActiveBooking($conn, $user_id) {
+    date_default_timezone_set('Asia/Jakarta');
+    $uid = (int)$user_id;
+    $now = date('Y-m-d H:i:s');
+    $today = date('Y-m-d');
+
+    // 1. Cek booking regular aktif
+    $q1 = "SELECT b.id_booking AS id, l.nama AS nama_lapangan, b.tanggal_main AS tanggal, b.jam_mulai, b.jam_selesai, b.status_pembayaran, 'Regular' AS jenis
+           FROM booking b
+           JOIN lapangan l ON b.lapangan_id = l.id_lapangan
+           WHERE b.user_id = $uid
+           AND (
+               b.status_pembayaran = 'pending'
+               OR (b.status_pembayaran = 'dikonfirmasi' AND CONCAT(b.tanggal_main, ' ', b.jam_selesai) > '$now')
+           )
+           ORDER BY b.tanggal_booking DESC
+           LIMIT 1";
+    $r1 = mysqli_query($conn, $q1);
+    if ($r1 && mysqli_num_rows($r1) > 0) {
+        return mysqli_fetch_assoc($r1);
+    }
+
+    // 2. Cek booking eskul aktif
+    $q2 = "SELECT be.id_booking_eskul AS id, l.nama AS nama_lapangan, be.tanggal_mulai AS tanggal, be.jam_mulai, ADDTIME(be.jam_mulai, '03:00:00') AS jam_selesai, be.status_pembayaran, 'Ekstrakurikuler' AS jenis
+           FROM booking_eskul be
+           JOIN lapangan l ON be.lapangan_id = l.id_lapangan
+           WHERE be.user_id = $uid
+           AND (
+               be.status_pembayaran = 'pending'
+               OR (be.status_pembayaran = 'dikonfirmasi' AND DATE_ADD(be.tanggal_mulai, INTERVAL be.durasi_bulan MONTH) >= '$today')
+           )
+           ORDER BY be.tanggal_booking DESC
+           LIMIT 1";
+    $r2 = mysqli_query($conn, $q2);
+    if ($r2 && mysqli_num_rows($r2) > 0) {
+        return mysqli_fetch_assoc($r2);
+    }
+
+    // 3. Cek booking turnamen aktif
+    $q3 = "SELECT bt.id_booking_turnamen AS id, l.nama AS nama_lapangan, bt.tanggal_mulai AS tanggal, bt.jam_mulai, bt.jam_selesai, bt.status_pembayaran, 'Turnamen' AS jenis
+           FROM booking_turnamen bt
+           JOIN lapangan l ON bt.lapangan_id = l.id_lapangan
+           WHERE bt.user_id = $uid
+           AND (
+               bt.status_pembayaran = 'pending'
+               OR (bt.status_pembayaran = 'dikonfirmasi' AND CONCAT(DATE_ADD(bt.tanggal_mulai, INTERVAL GREATEST(bt.durasi_hari - 1, 0) DAY), ' ', bt.jam_selesai) > '$now')
+           )
+           ORDER BY bt.tanggal_booking DESC
+           LIMIT 1";
+    $r3 = mysqli_query($conn, $q3);
+    if ($r3 && mysqli_num_rows($r3) > 0) {
+        return mysqli_fetch_assoc($r3);
+    }
+
+    return null;
+}
+
 if (ob_get_level() > 0) {
     ob_end_flush();
 }

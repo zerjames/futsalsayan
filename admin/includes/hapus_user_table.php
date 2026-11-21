@@ -26,6 +26,7 @@ $result = mysqli_query($conn, $query);
                 <td class="border px-4 py-2"><?php echo htmlspecialchars($row['email']); ?></td>
                 <td class="border px-4 py-2">
                     <form method="POST" action="proses_hapus_user.php" onsubmit="return confirm('Yakin ingin menghapus user ini?');">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="user_id" value="<?php echo $row['id']; ?>">
                         <button type="submit" class="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded">Hapus</button>
                     </form>

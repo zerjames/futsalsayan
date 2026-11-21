@@ -26,6 +26,7 @@ include 'includes/header.php';
     <h2 class="text-2xl font-bold text-center text-green-600 mb-6">Jadwal Lapangan</h2>
 
     <form method="POST" action="" class="space-y-4">
+        <?php echo csrf_field(); ?>
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="lapangan_id">
@@ -67,15 +68,17 @@ include 'includes/header.php';
     <?php if ($_SERVER['REQUEST_METHOD'] == 'POST'): ?>
         <?php
         // Ambil nama lapangan
-        $lapangan_id = $_POST['lapangan_id'];
-        $query = "SELECT nama FROM lapangan WHERE id = '$lapangan_id'";
+        $lapangan_id = (int)$_POST['lapangan_id'];
+        $query = "SELECT nama FROM lapangan WHERE id_lapangan = '$lapangan_id' OR id = '$lapangan_id'";
         $result = mysqli_query($conn, $query);
-        $lapangan = mysqli_fetch_assoc($result);
+        $lapangan = $result ? mysqli_fetch_assoc($result) : null;
+        $nama_lap = $lapangan ? $lapangan['nama'] : 'Lapangan';
+        $tgl_display = !empty($_POST['tanggal']) ? date('d/m/Y', strtotime($_POST['tanggal'])) : '-';
         ?>
         <div class="mt-8">
             <div class="mb-4">
                 <h3 class="text-lg font-semibold">Jadwal Booking:</h3>
-                <p class="text-gray-600"><?php echo htmlspecialchars($lapangan['nama']); ?> - <?php echo date('d/m/Y', strtotime($_POST['tanggal'])); ?></p>
+                <p class="text-gray-600"><?php echo htmlspecialchars($nama_lap, ENT_QUOTES, 'UTF-8'); ?> - <?php echo htmlspecialchars($tgl_display, ENT_QUOTES, 'UTF-8'); ?></p>
             </div>
             <div class="space-y-4">
                 <?php

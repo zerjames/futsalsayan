@@ -15,6 +15,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_request()) {
+        $_SESSION['error'] = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa.";
+        header("Location: dashboard.php?tab=kelola_user");
+        exit();
+    }
     if (isset($_POST['user_id'])) {
         $user_id = intval($_POST['user_id']);
 

@@ -11,76 +11,90 @@ $users_result = mysqli_query($conn, $query_users);
 
 // Tampilkan pesan sukses atau error jika ada
 if (isset($_SESSION['success'])) {
-    echo '<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">' . $_SESSION['success'] . '</div>';
+    echo '<div class="bg-green-50 border-l-4 border-green-800 text-green-900 px-4 py-3 text-sm mb-4">' . htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8') . '</div>';
     unset($_SESSION['success']);
 }
 if (isset($_SESSION['error'])) {
-    echo '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">' . $_SESSION['error'] . '</div>';
+    echo '<div class="bg-red-50 border-l-4 border-red-700 text-red-900 px-4 py-3 text-sm mb-4">' . htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8') . '</div>';
     unset($_SESSION['error']);
 }
 ?>
 
-<h2 class="text-2xl font-bold mb-6">Kelola User</h2>
+<div class="bg-white rounded-lg border border-stone-200 overflow-hidden">
+    <div class="px-5 py-4 border-b border-stone-200">
+        <h2 class="text-lg font-bold text-stone-900">Kelola User</h2>
+    </div>
 
-<div class="overflow-x-auto">
-<table class="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
-    <thead class="bg-gray-100">
-        <tr>
-            <th class="py-3 px-6 border-b text-center text-gray-700 font-semibold">Foto</th>
-            <th class="py-3 px-6 border-b text-left text-gray-700 font-semibold">ID</th>
-            <th class="py-3 px-6 border-b text-left text-gray-700 font-semibold">Nama</th>
-            <th class="py-3 px-6 border-b text-left text-gray-700 font-semibold">Username</th>
-            <th class="py-3 px-6 border-b text-left text-gray-700 font-semibold">Email</th>
-            <th class="py-3 px-6 border-b text-left text-gray-700 font-semibold">Telepon</th>
-            <th class="py-3 px-6 border-b text-center text-gray-700 font-semibold">Status Akun</th>
-            <th class="py-3 px-6 border-b text-center text-gray-700 font-semibold">Aksi</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php while ($user = mysqli_fetch_assoc($users_result)): ?>
-        <tr class="hover:bg-gray-50">
-            <td class="py-3 px-6 border-b text-center">
-              <?php 
-                $foto = !empty($user['foto_profil']) ? 'futsalsayan/uploads/profile/' . $user['foto_profil'] : 'assets/images/default_profile.png';
-                $url = '/' . $foto;
-              ?>
-              <img src="<?php echo $url; ?>" alt="Foto Profil" class="w-10 h-10 rounded-full object-cover border mx-auto">
-              <div style="font-size:10px;color:#888;word-break:break-all;max-width:120px;margin:auto;">
-                <a href="#" onclick="showProfileModal('<?php echo $url; ?>');return false;" style="color:#007bff;word-break:break-all;">[Lihat]</a>
-              </div>
-            </td>
-            <td class="py-3 px-6 border-b"><?php echo htmlspecialchars($user['id_user']); ?></td>
-            <td class="py-3 px-6 border-b"><?php echo htmlspecialchars($user['nama']); ?></td>
-            <td class="py-3 px-6 border-b"><?php echo htmlspecialchars($user['username']); ?></td>
-            <td class="py-3 px-6 border-b"><?php echo htmlspecialchars($user['email']); ?></td>
-            <td class="py-3 px-6 border-b"><?php echo htmlspecialchars($user['telepon']); ?></td>
-            <td class="py-3 px-6 border-b text-center">
-              <?php if ($user['is_verified'] == 1): ?>
-                <span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full border border-green-300">Terverifikasi</span>
-              <?php else: ?>
-                <span class="inline-block bg-red-100 text-red-800 text-xs font-semibold px-3 py-1 rounded-full border border-red-300">Belum Verifikasi</span>
-              <?php endif; ?>
-            </td>
-            <td class="py-3 px-6 border-b text-center">
-                <a href="edit_user.php?id=<?php echo htmlspecialchars($user['id_user']); ?>" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200 mr-2">Edit</a>
-                <form method="POST" action="hapus_user.php" onsubmit="return confirm('Apakah Anda yakin ingin menghapus user ini?');" style="display:inline;">
-                    <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['id_user']); ?>">
-                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                        Hapus
-                    </button>
-                </form>
-            </td>
-        </tr>
-        <?php endwhile; ?>
-    </tbody>
-</table>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="bg-stone-50 border-b border-stone-200">
+                <tr>
+                    <th class="py-3 px-4 text-center text-xs font-semibold uppercase tracking-wider text-stone-500">Foto</th>
+                    <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">ID</th>
+                    <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Nama</th>
+                    <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Username</th>
+                    <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Email</th>
+                    <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider text-stone-500">Telepon</th>
+                    <th class="py-3 px-4 text-center text-xs font-semibold uppercase tracking-wider text-stone-500">Status</th>
+                    <th class="py-3 px-4 text-center text-xs font-semibold uppercase tracking-wider text-stone-500">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-200">
+                <?php while ($user = mysqli_fetch_assoc($users_result)): ?>
+                <tr class="hover:bg-stone-50/70 transition-colors">
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <?php 
+                            $foto = !empty($user['foto_profil']) ? '/futsalsayan/uploads/profile/' . $user['foto_profil'] : '/futsalsayan/assets/images/default_profile.png';
+                            $safeFoto = htmlspecialchars($foto, ENT_QUOTES, 'UTF-8');
+                        ?>
+                        <img src="<?php echo $safeFoto; ?>" alt="Foto Profil" class="w-9 h-9 rounded-full object-cover border border-stone-200 mx-auto cursor-pointer" onclick="showProfileModal('<?php echo $safeFoto; ?>')">
+                        <button type="button" onclick="showProfileModal('<?php echo $safeFoto; ?>')" class="text-[11px] text-green-800 hover:underline mt-0.5">
+                            Lihat
+                        </button>
+                    </td>
+                    <td class="py-3 px-4 text-stone-500 tabular-nums whitespace-nowrap"><?php echo htmlspecialchars($user['id_user'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td class="py-3 px-4 font-medium text-stone-900 whitespace-nowrap"><?php echo htmlspecialchars($user['nama'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td class="py-3 px-4 text-stone-600 whitespace-nowrap"><?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td class="py-3 px-4 text-stone-600"><?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td class="py-3 px-4 text-stone-600 tabular-nums whitespace-nowrap"><?php echo htmlspecialchars($user['telepon'], ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <?php if ($user['is_verified'] == 1): ?>
+                            <span class="inline-block bg-green-50 text-green-800 text-xs font-medium px-2.5 py-1 rounded border border-green-200">Terverifikasi</span>
+                        <?php else: ?>
+                            <span class="inline-block bg-red-50 text-red-700 text-xs font-medium px-2.5 py-1 rounded border border-red-200">Belum Verifikasi</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <div class="inline-flex items-center justify-center gap-2">
+                            <a href="edit_user.php?id=<?php echo htmlspecialchars($user['id_user'], ENT_QUOTES, 'UTF-8'); ?>"
+                               class="px-3 py-1.5 text-xs font-medium rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-800 transition-colors">
+                                Edit
+                            </a>
+                            <form method="POST" action="hapus_user.php" onsubmit="return openAdminConfirmForm(event, this, 'Hapus user ini?', 'Akun user yang dihapus tidak dapat dikembalikan.', 'Ya, Hapus')" class="inline">
+                                <?php echo csrf_field(); ?>
+                                <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['id_user'], ENT_QUOTES, 'UTF-8'); ?>">
+                                <button type="submit"
+                                        class="px-3 py-1.5 text-xs font-medium rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 transition-colors">
+                                    Hapus
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
+
 <!-- Modal untuk preview foto profil -->
-<div id="profileModal" style="display:none;position:fixed;z-index:9999;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
-  <div style="background:#fff;padding:16px 24px;border-radius:12px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center;">
-    <img id="profileModalImg" src="" alt="Preview Foto" style="max-width:60vw;max-height:60vh;border-radius:12px;box-shadow:0 2px 16px #0002;">
-    <button onclick="closeProfileModal()" style="margin-top:16px;padding:8px 24px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Tutup</button>
-  </div>
+<div id="profileModal" style="display:none;position:fixed;z-index:9999;left:0;top:0;width:100vw;height:100vh;background:rgba(28,25,23,0.6);align-items:center;justify-content:center;">
+    <div class="bg-white border border-stone-200 p-5 rounded-lg max-w-[90vw] max-h-[90vh] flex flex-col items-center shadow-lg">
+        <img id="profileModalImg" src="" alt="Preview Foto" class="max-w-[75vw] sm:max-w-md max-h-[65vh] rounded-md border border-stone-200 object-contain">
+        <button type="button" onclick="closeProfileModal()" class="mt-4 px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-md transition-colors">
+            Tutup
+        </button>
+    </div>
 </div>
 <script>
 function showProfileModal(url) {

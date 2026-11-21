@@ -1,10 +1,15 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../config/database.php';
 
-$month = isset($_GET['bulan']) ? (int)$_GET['bulan'] : (int)date('m');
-$year = isset($_GET['tahun']) ? (int)$_GET['tahun'] : (int)date('Y');
+$month = isset($_GET['bulan']) ? filter_var($_GET['bulan'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]) : false;
+if ($month === false) {
+    $month = (int)date('m');
+}
+$year = isset($_GET['tahun']) ? filter_var($_GET['tahun'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 2000, 'max_range' => 2100]]) : false;
+if ($year === false) {
+    $year = (int)date('Y');
+}
 
 // Include filter component
 $tab_name = 'booking_regular';
@@ -128,28 +133,26 @@ if (!$result_regular) {
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <div class="space-y-2">
+                        <div class="flex flex-col gap-1.5 w-32">
                             <?php if ($booking['status_pembayaran'] != 'dikonfirmasi' && $booking['status_pembayaran'] != 'dibatalkan'): ?>
-                                <div class="flex flex-col space-y-2">
-                                    <a href="/futsalsayan/admin/konfirmasi.php?id=<?php echo $booking['id_booking']; ?>&status=dikonfirmasi&type=regular" 
-                                       class="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200">
-                                        <i class="fas fa-check mr-2"></i>Konfirmasi
-                                    </a>
-                                    <a href="/futsalsayan/admin/konfirmasi.php?id=<?php echo $booking['id_booking']; ?>&status=dibatalkan&type=regular" 
-                                       class="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-                                       onclick="return confirm('Yakin ingin membatalkan booking ini?')">
-                                        <i class="fas fa-times mr-2"></i>Batalkan
-                                    </a>
-                                </div>
+                                <a href="/futsalsayan/admin/konfirmasi.php?id=<?php echo $booking['id_booking']; ?>&status=dikonfirmasi&type=regular" 
+                                   class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-900 hover:bg-green-800 text-white whitespace-nowrap transition-colors">
+                                    Konfirmasi
+                                </a>
+                                <a href="/futsalsayan/admin/konfirmasi.php?id=<?php echo $booking['id_booking']; ?>&status=dibatalkan&type=regular" 
+                                   class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 whitespace-nowrap transition-colors"
+                                   onclick="return openAdminConfirmLink(event, this.href, 'Apakah Anda ingin membatalkan booking?', 'Booking regular ini akan dibatalkan.', 'Ya, Batalkan')">
+                                    Batalkan
+                                </a>
                             <?php endif; ?>
-                            
-                            <a href="/futsalsayan/admin/hapus_booking.php?id=<?php echo $booking['id_booking']; ?>&type=regular" 
-                               class="text-gray-600 hover:text-gray-900 block"
-                               onclick="return confirm('PERINGATAN: Menghapus booking akan menghilangkan semua data termasuk bukti pembayaran. Lanjutkan?')">
-                                <i class="fas fa-trash"></i> Hapus
+                            <a href="/futsalsayan/invoice.php?booking_id=<?php echo $booking['id_booking']; ?>"
+                               class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-800 whitespace-nowrap transition-colors">
+                                Lihat Invoice
                             </a>
-                            <a href="/futsalsayan/invoice.php?booking_id=<?php echo $booking['id_booking']; ?>" class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
-                                <i class="fas fa-file-invoice mr-2"></i>Lihat Invoice
+                            <a href="/futsalsayan/admin/hapus_booking.php?id=<?php echo $booking['id_booking']; ?>&type=regular" 
+                               class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 whitespace-nowrap transition-colors"
+                               onclick="return openAdminConfirmLink(event, this.href, 'Hapus data booking ini?', 'Menghapus booking akan menghilangkan semua data termasuk bukti pembayaran.', 'Ya, Hapus')">
+                                Hapus
                             </a>
                         </div>
                     </td>

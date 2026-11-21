@@ -1,13 +1,6 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-// Start session harus di paling atas sebelum output apapun
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// Include database dan functions di awal
+// Include security, database dan functions di awal
+require_once '../includes/security.php';
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
@@ -19,9 +12,16 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 
 autoCancelUnpaidBookings($conn);
 
-// Get selected month and year
-$selected_month = isset($_GET['bulan']) ? $_GET['bulan'] : date('n');
-$selected_year = isset($_GET['tahun']) ? $_GET['tahun'] : date('Y');
+// Get selected month and year with strict validation
+$selected_month = isset($_GET['bulan']) ? filter_var($_GET['bulan'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]) : false;
+if ($selected_month === false) {
+    $selected_month = (int)date('n');
+}
+
+$selected_year = isset($_GET['tahun']) ? filter_var($_GET['tahun'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 2000, 'max_range' => 2100]]) : false;
+if ($selected_year === false) {
+    $selected_year = (int)date('Y');
+}
 
 $query_stats = "SELECT 
     (SELECT COUNT(*) FROM users WHERE role = 'user') as total_user,
@@ -62,8 +62,11 @@ if (empty($stats['total_pendapatan']) || $stats['total_pendapatan'] == 0) {
 require_once '../includes/header.php';
 ?>
 
-<!-- Set page title -->
-<script>document.title = "Dashboard Admin";</script>
+<!-- Set page title and CSRF token -->
+<script>
+    document.title = "Dashboard Admin";
+    window.csrfToken = "<?php echo csrf_token(); ?>";
+</script>
 
 <style>
     .modal {
@@ -101,15 +104,19 @@ require_once '../includes/header.php';
     }
 </style>
 
-<div class="container mx-auto px-4 py-8">
+<div class="w-full">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-900">Dashboard Admin</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Kelola booking, lapangan, dan pengguna Futsal Sayan</p>
+        </div>
         <?php include 'includes/nav_buttons.php'; ?>
 
         <!-- Notification area -->
-        <div id="bookingNotification" class="mb-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded hidden">
+        <div id="bookingNotification" class="mb-5 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm hidden">
             <strong>Notifikasi:</strong> <span id="notifTitle">Ada booking baru!</span>
             <ul id="bookingNotificationList" class="list-disc list-inside mt-2"></ul>
         </div>
-        <button id="enableSoundBtn" class="mb-2 px-3 py-1 bg-green-200 text-green-800 rounded" style="display:none;">Aktifkan Suara Notifikasi</button>
+        <button id="enableSoundBtn" class="mb-3 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-lg" style="display:none;">Aktifkan Suara Notifikasi</button>
 
         <!-- Include Stats Cards -->
         <?php include 'includes/stats_cards.php'; ?>
@@ -293,4 +300,106 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'booking_regular';
     }
     </script>
 
+    <!-- Modal Konfirmasi Aksi Admin (Batalkan / Hapus) -->
+    <div id="adminConfirmModal" class="fixed inset-0 bg-stone-900/50 hidden z-50 p-0 sm:p-4">
+        <div class="min-h-full flex items-end sm:items-center justify-center">
+            <div class="w-full sm:max-w-md bg-white border-t sm:border border-stone-200 rounded-t-2xl sm:rounded-lg shadow-xl p-6 text-center">
+                <div class="w-10 h-1 bg-stone-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+                <img src="../assets/images/cancel.svg" alt="Konfirmasi" class="w-36 sm:w-40 h-auto mx-auto mb-4">
+                <h3 id="adminConfirmTitle" class="text-lg font-bold text-stone-900">Apakah Anda yakin?</h3>
+                <p id="adminConfirmMessage" class="text-xs sm:text-sm text-stone-500 mt-2 leading-relaxed"></p>
+                <div class="mt-6 grid grid-cols-2 gap-2.5">
+                    <button type="button" onclick="closeAdminConfirmModal()"
+                            class="py-2.5 px-4 rounded-md border border-stone-300 bg-white hover:border-stone-900 text-stone-800 text-sm font-medium transition-colors">
+                        Tidak, Kembali
+                    </button>
+                    <button type="button" id="adminConfirmOkBtn"
+                            class="py-2.5 px-4 rounded-md bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-colors">
+                        Ya, Lanjutkan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var pendingAction = null;
+        var modal = document.getElementById('adminConfirmModal');
+        var titleEl = document.getElementById('adminConfirmTitle');
+        var msgEl = document.getElementById('adminConfirmMessage');
+        var okBtn = document.getElementById('adminConfirmOkBtn');
+
+        function showAdminLoader() {
+            var overlay = document.getElementById('fsLoaderOverlay');
+            var bar = document.getElementById('fsLoaderBar');
+            var label = document.getElementById('fsLoaderText');
+            if (label) label.textContent = 'Memproses...';
+            if (bar) bar.classList.add('is-active');
+            if (overlay) overlay.classList.add('is-active');
+        }
+
+        window.openAdminConfirmLink = function(event, url, title, message, btnText) {
+            if (event) event.preventDefault();
+            titleEl.textContent = title || 'Apakah Anda yakin?';
+            msgEl.textContent = message || 'Tindakan ini tidak dapat dibatalkan.';
+            okBtn.textContent = btnText || 'Ya, Lanjutkan';
+            pendingAction = function() {
+                showAdminLoader();
+                window.location.href = url;
+            };
+            modal.classList.remove('hidden');
+            return false;
+        };
+
+        window.openAdminConfirmForm = function(event, formEl, title, message, btnText) {
+            if (event) event.preventDefault();
+            titleEl.textContent = title || 'Apakah Anda yakin?';
+            msgEl.textContent = message || 'Tindakan ini tidak dapat dibatalkan.';
+            okBtn.textContent = btnText || 'Ya, Hapus';
+            pendingAction = function() {
+                showAdminLoader();
+                formEl.submit();
+            };
+            modal.classList.remove('hidden');
+            return false;
+        };
+
+        window.closeAdminConfirmModal = function() {
+            modal.classList.add('hidden');
+            pendingAction = null;
+        };
+
+        okBtn.addEventListener('click', function() {
+            var action = pendingAction;
+            closeAdminConfirmModal();
+            if (typeof action === 'function') action();
+        });
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal || e.target === modal.firstElementChild) {
+                closeAdminConfirmModal();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeAdminConfirmModal();
+        });
+
+        // Loading indicator saat pindah tab atau submit form di admin
+        document.addEventListener('submit', function(e) {
+            if (!e.defaultPrevented) showAdminLoader();
+        });
+        window.addEventListener('pageshow', function() {
+            var overlay = document.getElementById('fsLoaderOverlay');
+            var bar = document.getElementById('fsLoaderBar');
+            if (overlay) overlay.classList.remove('is-active');
+            if (bar) bar.classList.remove('is-active');
+        });
+    })();
+    </script>
+
     <audio id="notifSound" src="../assets/sounds/notif.mp3" preload="auto"></audio>
+</main>
+</body>
+</html>

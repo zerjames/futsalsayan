@@ -134,6 +134,7 @@ include '../includes/header.php';
     <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
         <h3 id="modalTitle" class="text-lg font-bold mb-4">Tambah Paket Baru</h3>
         <form id="paketForm" method="POST" action="proses_harga_paket.php">
+            <?php echo csrf_field(); ?>
             <input type="hidden" name="action" id="formAction" value="add">
             <input type="hidden" name="id" id="paketId">
             

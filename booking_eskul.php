@@ -24,6 +24,9 @@ if ($_SESSION['role'] == 'admin') {
     }
 }
 
+// Jalankan auto-cancel sebelum cek jadwal / proses booking agar slot kadaluarsa langsung kosong
+autoCancelUnpaidBookings($conn);
+
 // Cek apakah ada parameter lapangan
 if (!isset($_GET['lapangan'])) {
     header("Location: index.php");
@@ -71,25 +74,15 @@ if ($_SESSION['role'] == 'admin' && isset($_POST['selected_user_id'])) {
 
 require_once 'includes/mail.php';
 
+// Cek batas maksimal 1 booking aktif per akun (non-admin)
+$active_booking = ($_SESSION['role'] != 'admin') ? getUserActiveBooking($conn, $user_id) : null;
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Cek booking aktif user (status pending)
-    if ($_SESSION['role'] != 'admin') {
-        $cek_query = "
-            (SELECT COUNT(*) as total FROM booking WHERE user_id = '$user_id' AND status_pembayaran = 'pending')
-            UNION ALL
-            (SELECT COUNT(*) as total FROM booking_eskul WHERE user_id = '$user_id' AND status_pembayaran = 'pending')
-            UNION ALL
-            (SELECT COUNT(*) as total FROM booking_turnamen WHERE user_id = '$user_id' AND status_pembayaran = 'pending')
-        ";
-        $cek_result = mysqli_query($conn, $cek_query);
-        $total_pending = 0;
-        while ($row = mysqli_fetch_assoc($cek_result)) {
-            $total_pending += $row['total'];
-        }
-        if ($total_pending > 0) {
-            $error = 'Anda masih memiliki booking yang belum dikonfirmasi. Silakan tunggu konfirmasi admin sebelum melakukan booking lagi.';
-        }
-    }
+    if (!validate_csrf_request()) {
+        $error = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.";
+    } elseif ($_SESSION['role'] != 'admin' && $active_booking) {
+        $error = 'Setiap akun hanya diperbolehkan memiliki 1 booking aktif. Anda masih memiliki booking aktif (' . $active_booking['nama_lapangan'] . ' - ' . date('d/m/Y', strtotime($active_booking['tanggal'])) . '). Selesaikan atau batalkan booking tersebut terlebih dahulu.';
+    } else {
 
     $nama_sekolah = mysqli_real_escape_string($conn, $_POST['nama_sekolah']);
     $nama_guru = mysqli_real_escape_string($conn, $_POST['nama_guru']);
@@ -152,50 +145,67 @@ if (mysqli_query($conn, $query)) {
 }
         }
     }
+    }
 }
 
 // Include header setelah semua logic PHP dan redirect selesai
 include 'includes/header.php';
 ?>
 
-<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6 m-2 sm:m-0">
-    <!-- Tombol Kembali ke Beranda -->
-    <a href="index.php" class="inline-flex items-center bg-gray-200 text-green-700 px-4 py-2 rounded font-semibold hover:bg-gray-300 mb-4">
-        <i class="fas fa-arrow-left mr-2"></i> Kembali ke Beranda
+<div class="max-w-2xl mx-auto">
+    <a href="index.php" class="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors mb-5">
+        &larr; Kembali ke Beranda
     </a>
-    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6 my-4">
-        <h2 class="text-2xl font-bold text-center text-green-600 mb-2">Booking Eskul Lapangan <?php echo htmlspecialchars($lapangan['nama']); ?></h2>
-        <!-- Removed "Lihat Jadwal yang Tersedia" link as per user request -->
-        <!--
-        <div class="text-center mb-6">
-            <a href="lihat_jadwal_eskul.php?lapangan=<?php echo $lapangan_id; ?>" class="text-blue-500 hover:text-blue-600">
-                <i class="fas fa-calendar-alt mr-1"></i>Lihat Jadwal yang Tersedia
-            </a>
+
+    <div class="bg-white rounded-lg border border-stone-200 p-6 sm:p-8">
+        <div class="pb-5 border-b border-stone-200 mb-6 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
+            <div>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-green-800">Paket Ekstrakurikuler</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-stone-900 mt-0.5"><?php echo htmlspecialchars($lapangan['nama'], ENT_QUOTES, 'UTF-8'); ?></h2>
+            </div>
+            <?php if (!empty($harga_paket['harga'])): ?>
+                <p class="text-sm font-bold text-stone-900 tabular-nums">
+                    Rp <?php echo number_format($harga_paket['harga'], 0, ',', '.'); ?><span class="text-xs font-normal text-stone-500">/bulan</span>
+                </p>
+            <?php endif; ?>
         </div>
-        -->
-        
+
         <?php if (isset($error)): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <?php echo $error; ?>
+            <div class="bg-red-50 border-l-4 border-red-700 text-red-900 px-4 py-3 text-sm mb-5">
+                <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($active_booking && !isset($error)): ?>
+            <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-md p-4 text-sm mb-5">
+                <p class="font-bold">Batas 1 Booking Aktif per Akun</p>
+                <p class="text-xs sm:text-sm mt-1">
+                    Anda masih memiliki booking aktif di <strong><?php echo htmlspecialchars($active_booking['nama_lapangan'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                    (<?php echo htmlspecialchars($active_booking['jenis'], ENT_QUOTES, 'UTF-8'); ?>, <?php echo date('d/m/Y', strtotime($active_booking['tanggal'])); ?>).
+                </p>
+                <a href="riwayat.php" class="inline-block mt-3 px-3.5 py-1.5 rounded-md bg-stone-900 hover:bg-green-800 text-white text-xs font-semibold transition-colors">
+                    Lihat Riwayat Booking
+                </a>
             </div>
         <?php endif; ?>
 
         <form method="POST" action="" class="space-y-4" id="bookingEskulForm">
+            <?php echo csrf_field(); ?>
             <?php if ($_SESSION['role'] == 'admin'): ?>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="selected_user_id">
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="selected_user_id">
                         Pilih User
                     </label>
-                    <select class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    <select class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm bg-white focus:outline-none focus:border-stone-900"
                             id="selected_user_id" 
                             name="selected_user_id" 
                             required>
                         <option value="">Pilih Admin/User</option>
-                        <option value="<?php echo $_SESSION['user_id']; ?>">Admin (<?php echo $_SESSION['username']; ?>)</option>
+                        <option value="<?php echo $_SESSION['user_id']; ?>">Admin (<?php echo htmlspecialchars($_SESSION['username'], ENT_QUOTES, 'UTF-8'); ?>)</option>
                         <optgroup label="Users">
                             <?php foreach ($users as $user): ?>
                                 <option value="<?php echo $user['id_user']; ?>">
-                                    <?php echo $user['nama'] . ' (' . $user['username'] . ')'; ?>
+                                    <?php echo htmlspecialchars($user['nama'] . ' (' . $user['username'] . ')', ENT_QUOTES, 'UTF-8'); ?>
                                 </option>
                             <?php endforeach; ?>
                         </optgroup>
@@ -204,110 +214,113 @@ include 'includes/header.php';
             <?php endif; ?>
 
             <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="nama_sekolah">
+                <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="nama_sekolah">
                     Nama Sekolah
                 </label>
-                <input class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                <input class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900"
                        id="nama_sekolah" 
                        type="text" 
                        name="nama_sekolah" 
                        required>
             </div>
 
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="nama_guru">
-                    Guru Penanggung Jawab
-                </label>
-                <input class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                       id="nama_guru" 
-                       type="text" 
-                       name="nama_guru" 
-                       pattern="[A-Za-z\s]+"
-                       title="Nama guru hanya boleh mengandung huruf alphabet"
-                       required>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="nama_guru">
+                        Guru Penanggung Jawab
+                    </label>
+                    <input class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900"
+                           id="nama_guru" 
+                           type="text" 
+                           name="nama_guru" 
+                           pattern="[A-Za-z\s]+"
+                           title="Nama guru hanya boleh mengandung huruf alphabet"
+                           required>
+                </div>
+
+                <div>
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="telepon_guru">
+                        Nomor Telepon Guru
+                    </label>
+                    <input class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900"
+                           id="telepon_guru" 
+                           type="tel" 
+                           name="telepon_guru" 
+                           required>
+                </div>
             </div>
 
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="telepon_guru">
-                    Telepon
-                </label>
-                <input class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                       id="telepon_guru" 
-                       type="tel" 
-                       name="telepon_guru" 
-                       required>
-            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="tanggal_mulai">
+                        Tanggal Mulai
+                    </label>
+                    <input class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900"
+                           id="tanggal_mulai" 
+                           type="date" 
+                           name="tanggal_mulai" 
+                           value="<?php echo isset($_POST['tanggal_mulai']) ? htmlspecialchars($_POST['tanggal_mulai'], ENT_QUOTES, 'UTF-8') : date('Y-m-d'); ?>"
+                           min="<?php echo date('Y-m-d'); ?>"
+                           required>
+                </div>
 
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="tanggal_mulai">
-                    Tanggal Mulai
-                </label>
-                <input class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                       id="tanggal_mulai" 
-                       type="date" 
-                       name="tanggal_mulai" 
-                       value="<?php echo isset($_POST['tanggal_mulai']) ? $_POST['tanggal_mulai'] : date('Y-m-d'); ?>"
-                       min="<?php echo date('Y-m-d'); ?>"
-                       required>
-            </div>
+                <div>
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="jam_mulai">
+                        Jam Latihan (3 Jam)
+                    </label>
+                    <select class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm bg-white focus:outline-none focus:border-stone-900"
+                            id="jam_mulai" 
+                            name="jam_mulai" 
+                            required>
+                        <option value="">Pilih Jam</option>
+                        <?php
+                        $startHours = range(8, 19);
+                        foreach ($startHours as $startHour) {
+                            $endHour = $startHour + 3;
+                            $startFormatted = str_pad($startHour, 2, "0", STR_PAD_LEFT) . ":00";
+                            $endFormatted = str_pad($endHour, 2, "0", STR_PAD_LEFT) . ":00";
+                            echo "<option value='$startFormatted'>$startFormatted – $endFormatted</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
 
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="jam_mulai">
-                    Jam Mulai
-                </label>
-                <select class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        id="jam_mulai" 
-                        name="jam_mulai" 
-                        required>
-                    <option value="">Pilih Jam Mulai</option>
-                    <?php
-                    $startHours = range(8, 19);
-                    foreach ($startHours as $startHour) {
-                        $endHour = $startHour + 3;
-                        $startFormatted = str_pad($startHour, 2, "0", STR_PAD_LEFT) . ":00";
-                        $endFormatted = str_pad($endHour, 2, "0", STR_PAD_LEFT) . ":00";
-                        echo "<option value='$startFormatted'>$startFormatted - $endFormatted</option>";
-                    }
-                    ?>
-                </select>
-                <p class="text-sm text-gray-500 mt-1">Buka: 08:00 - 22:00</p>
-            </div>
-
-            <div>
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="durasi_bulan">
-                    Durasi (bulan)
-                </label>
-                <select class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        id="durasi_bulan"
-                        name="durasi_bulan"
-                        required>
-                    <?php
-                    $selected_durasi = isset($_POST['durasi_bulan']) ? (int)$_POST['durasi_bulan'] : 1;
-                    for ($i = 1; $i <= 7; $i++) {
-                        $selected = $selected_durasi == $i ? 'selected' : '';
-                        echo "<option value=\"$i\" $selected>$i Bulan</option>";
-                    }
-                    ?>
-                </select>
+                <div>
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5" for="durasi_bulan">
+                        Durasi
+                    </label>
+                    <select class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm bg-white focus:outline-none focus:border-stone-900"
+                            id="durasi_bulan"
+                            name="durasi_bulan"
+                            required>
+                        <?php
+                        $selected_durasi = isset($_POST['durasi_bulan']) ? (int)$_POST['durasi_bulan'] : 1;
+                        for ($i = 1; $i <= 7; $i++) {
+                            $selected = $selected_durasi == $i ? 'selected' : '';
+                            echo "<option value=\"$i\" $selected>$i Bulan</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
             </div>
 
             <?php if ($_SESSION['role'] != 'admin'): ?>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                    <label class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-2">
                         Metode Pembayaran
                     </label>
-                    <div class="space-y-3">
-                        <label class="flex items-center p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="transfer" required class="mr-3"> 
-                            <span><i class="fas fa-university mr-2"></i>Transfer Bank</span>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-3 border border-stone-200 rounded-md hover:border-stone-400 cursor-pointer text-sm">
+                            <input type="radio" name="metode_pembayaran" value="transfer" required class="mr-3 accent-green-800"> 
+                            <span class="text-stone-800 font-medium">Transfer Bank (SeaBank)</span>
                         </label>
-                        <label class="flex items-center p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="qris" required class="mr-3"> 
-                            <span><i class="fas fa-qrcode mr-2"></i>QRIS (OVO, GoPay, Dana, dll)</span>
+                        <label class="flex items-center p-3 border border-stone-200 rounded-md hover:border-stone-400 cursor-pointer text-sm">
+                            <input type="radio" name="metode_pembayaran" value="qris" required class="mr-3 accent-green-800"> 
+                            <span class="text-stone-800 font-medium">QRIS (OVO, GoPay, DANA, ShopeePay)</span>
                         </label>
-                        <label class="flex items-center p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="cod" required class="mr-3"> 
-                            <span><i class="fas fa-money-bill-wave mr-2"></i>Bayar di Tempat (COD)</span>
+                        <label class="flex items-center p-3 border border-stone-200 rounded-md hover:border-stone-400 cursor-pointer text-sm">
+                            <input type="radio" name="metode_pembayaran" value="cod" required class="mr-3 accent-green-800"> 
+                            <span class="text-stone-800 font-medium">Bayar di Tempat (COD)</span>
                         </label>
                     </div>
                 </div>
@@ -315,10 +328,12 @@ include 'includes/header.php';
                 <input type="hidden" name="metode_pembayaran" value="cod">
             <?php endif; ?>
 
-            <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline w-full text-center text-lg"
-                    type="submit">
-                Booking Sekarang
+            <button class="w-full <?php echo $active_booking ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'bg-stone-900 hover:bg-green-800 text-white'; ?> font-semibold py-2.5 px-4 rounded-md transition-colors text-sm mt-2"
+                    type="submit" <?php echo $active_booking ? 'disabled' : ''; ?>>
+                <?php echo $active_booking ? 'Selesaikan Booking Aktif Terlebih Dahulu' : 'Lanjutkan Booking Eskul'; ?>
             </button>
         </form>
     </div>
 </div>
+
+<?php include 'includes/footer.php'; ?>

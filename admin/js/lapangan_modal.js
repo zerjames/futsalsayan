@@ -134,13 +134,19 @@ function closeModal(modalId) {
 
 function toggleStatus(id, newStatus) {
     if (confirm('Apakah Anda yakin ingin mengubah status lapangan ini?')) {
+        const csrfToken = window.csrfToken || (document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : '');
         const formData = new FormData();
         formData.append('id_lapangan', id);
+        formData.append('id', id);
         formData.append('new_status', newStatus);
         formData.append('action', 'toggle_status');
+        if (csrfToken) {
+            formData.append('csrf_token', csrfToken);
+        }
         fetch('proses_lapangan.php', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}
         })
         .then(response => response.text())
         .then(() => {

@@ -1,0 +1,37 @@
+# OWASP ZAP Security Hardening for Futsalsayan
+
+# Disable directory browsing & server signature
+Options -Indexes
+ServerSignature Off
+
+# Custom 404 Not Found Page
+ErrorDocument 404 /futsalsayan/404.php
+
+# Prevent access to log files and config files
+<FilesMatch "^(\.env|\.git|\.htaccess|.*\.log|error_log|composer\.(json|lock))$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Security HTTP Response Headers
+<IfModule mod_headers.c>
+    # Remove Server / PHP version leaks
+    Header unset X-Powered-By
+    Header always unset X-Powered-By
+
+    # MIME Type Sniffing Prevention
+    Header set X-Content-Type-Options "nosniff"
+
+    # Anti-Clickjacking Header
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # XSS Protection Filter
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Content Security Policy (allows necessary CDNs for Tailwind JIT Blob Web Workers, FullCalendar, FontAwesome, Google Fonts, and Google Maps)
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https: blob:; font-src 'self' https: data:; img-src 'self' data: https: blob:; media-src 'self' data:; frame-src 'self' https://www.google.com https://maps.google.com; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' https: blob:; frame-ancestors 'self';"
+</IfModule>
+

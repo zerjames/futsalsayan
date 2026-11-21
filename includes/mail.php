@@ -2,31 +2,39 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require __DIR__ . '/../vendor/phpmailer/phpmailer/src/Exception.php';
-require __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
-require __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
+require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/Exception.php';
+require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
+require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
 
 function sendMail($to_email, $subject, $message) {
     $mail = new PHPMailer(true);
 
+    $smtp_host = env('SMTP_HOST', 'smtp.gmail.com');
+    $smtp_port = (int) env('SMTP_PORT', 587);
+    $smtp_user = env('SMTP_USER', '');
+    $smtp_pass = env('SMTP_PASS', '');
+    $smtp_from_name = env('SMTP_FROM_NAME', 'Futsal Sayan Bekasi');
+
     try {
         // Server settings
         $mail->isSMTP();
-        $mail->Host = 'mail.sayan.biz.id'; // SMTP dari cPanel
-        $mail->SMTPAuth = true;
-        $mail->Username = 'futsalsayan@sayan.biz.id'; // Email domain
-        $mail->Password = 'pqhIPUKyyTp1=PEh'; // Ganti dengan password email cPanel
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // atau 'ssl'
-        $mail->Port = 465; // Port dari cPanel
+        $mail->Host       = $smtp_host;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $smtp_user;
+        $mail->Password   = $smtp_pass;
+        $mail->SMTPSecure = ($smtp_port === 465) ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = $smtp_port;
+        $mail->CharSet    = 'UTF-8';
 
         // Recipients
-        $mail->setFrom('futsalsayan@sayan.biz.id', 'Futsal Booking');
+        $mail->setFrom($smtp_user, $smtp_from_name);
         $mail->addAddress($to_email);
 
         // Content
         $mail->isHTML(true);
         $mail->Subject = $subject;
-        $mail->Body = $message;
+        $mail->Body    = $message;
 
         return $mail->send();
     } catch (Exception $e) {
@@ -118,7 +126,7 @@ function sendBookingNotification($conn, $booking_id, $status, $booking_type = 'r
 }
 
 function sendWhatsAppNotification($phone, $message) {
-    $token = '4x1XXx1te1wUemAEiMG8'; // Token Fonnte
+    $token = env('FONNTE_TOKEN', ''); // Token Fonnte dari .env
     $url = 'https://api.fonnte.com/send';
     
     $data = [

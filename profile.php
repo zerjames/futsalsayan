@@ -17,8 +17,21 @@ $user_id = $_SESSION['user_id'];
 $notif = $_SESSION['notif'] ?? null;
 unset($_SESSION['notif']);
 
+// CSRF Validation for all POST requests in profile
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_request()) {
+        if (isset($_POST['action']) && $_POST['action'] === 'kirim_kode') {
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+            exit();
+        }
+        $_SESSION['notif'] = ['type' => 'error', 'msg' => 'Token keamanan (CSRF) tidak valid atau telah kedaluwarsa.'];
+        header('Location: profile.php');
+        exit();
+    }
+}
+
 // Proses update profil
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['password_lama'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['password_lama']) && (!isset($_POST['action']) || $_POST['action'] !== 'kirim_kode')) {
     $nama = trim($_POST['nama']);
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
@@ -123,8 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password_lama'])) {
     $password_baru = $_POST['password_baru'];
     $konfirmasi_password = $_POST['konfirmasi_password'];
     $user = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM users WHERE id_user=$user_id"));
-    // Cek password lama
-    if ($password_lama !== $user['password']) {
+    // Cek password lama (mendukung bcrypt hash & password lama plaintext)
+    $is_valid_old = password_verify($password_lama, $user['password']) || hash_equals((string)$user['password'], (string)$password_lama);
+    if (!$is_valid_old) {
         $_SESSION['notif'] = ['type'=>'error','msg'=>'Password lama salah.'];
         header('Location: profile.php'); exit();
     }
@@ -133,10 +147,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password_lama'])) {
         $_SESSION['notif'] = ['type'=>'error','msg'=>'Konfirmasi password tidak cocok.'];
         header('Location: profile.php'); exit();
     }
-    // Update password
+    // Update password dengan hash bcrypt
+    $password_hash = password_hash($password_baru, PASSWORD_DEFAULT);
     $q = "UPDATE users SET password=? WHERE id_user=?";
     $stmt = mysqli_prepare($conn, $q);
-    mysqli_stmt_bind_param($stmt, 'si', $password_baru, $user_id);
+    mysqli_stmt_bind_param($stmt, 'si', $password_hash, $user_id);
     if (mysqli_stmt_execute($stmt)) {
         $_SESSION['notif'] = ['type'=>'success','msg'=>'Password berhasil diganti.'];
     } else {
@@ -157,66 +172,82 @@ $foto_profil = !empty($user['foto_profil']) ? 'uploads/profile/' . $user['foto_p
 // Include header setelah semua logic PHP dan redirect selesai
 include 'includes/header.php';
 ?>
-<div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6 my-8">
-  <a href="index.php" class="inline-flex items-center mb-4 px-4 py-2 bg-gray-200 text-green-700 font-semibold rounded-lg shadow hover:bg-gray-300 transition">
-    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-    Kembali ke Beranda
+<div class="max-w-2xl mx-auto">
+  <a href="index.php" class="inline-flex items-center gap-2 mb-5 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">
+    &larr; Kembali ke Beranda
   </a>
-  <h2 class="text-2xl font-bold mb-6 text-green-700 text-center">Pengaturan Akun</h2>
-  <?php if ($notif): ?>
-    <div class="mb-4 px-4 py-3 rounded <?php echo $notif['type']==='success'?'bg-green-100 text-green-800 border border-green-300':'bg-red-100 text-red-800 border border-red-300'; ?>">
-      <?php echo $notif['msg']; ?>
-    </div>
-  <?php endif; ?>
-  <form id="formProfile" method="POST" enctype="multipart/form-data" class="space-y-4">
-    <div class="flex flex-col items-center mb-4">
-      <img src="<?php echo $foto_profil; ?>" alt="Foto Profil" class="w-24 h-24 rounded-full object-cover border mb-2" id="previewFoto">
-      <label class="block text-sm font-medium text-gray-700">Foto Profil</label>
-      <input type="file" name="foto_profil" accept="image/*" class="mt-1" onchange="previewImage(event)">
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Nama</label>
-      <input type="text" name="nama" value="<?php echo htmlspecialchars($user['nama']); ?>" class="input input-bordered w-full" required>
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Username</label>
-      <input type="text" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" class="input input-bordered w-full" required>
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Email</label>
-      <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" class="input input-bordered w-full" required>
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Nomor Telepon</label>
-      <input type="text" name="telepon" value="<?php echo htmlspecialchars($user['telepon']); ?>" class="input input-bordered w-full" required>
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Alamat</label>
-      <textarea name="alamat" class="input input-bordered w-full" rows="2" required><?php echo htmlspecialchars($user['alamat']); ?></textarea>
-    </div>
-    <div class="flex justify-end">
-      <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg">Simpan Perubahan</button>
-    </div>
-  </form>
-  <hr class="my-8">
-  <h3 class="text-lg font-bold mb-2 text-gray-700">Ganti Password</h3>
-  <form id="formPassword" method="POST" class="space-y-3">
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Password Lama</label>
-      <input type="password" name="password_lama" class="input input-bordered w-full" required>
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Password Baru</label>
-      <input type="password" name="password_baru" class="input input-bordered w-full" required>
-    </div>
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Konfirmasi Password Baru</label>
-      <input type="password" name="konfirmasi_password" class="input input-bordered w-full" required>
-    </div>
-    <div class="flex justify-end">
-      <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg">Ganti Password</button>
-    </div>
-  </form>
+  <div class="bg-white rounded-lg border border-stone-200 p-6 sm:p-8">
+    <h2 class="text-xl font-bold text-stone-900 mb-1">Pengaturan Akun</h2>
+    <p class="text-sm text-stone-500 mb-6">Perbarui data profil atau password akun Anda.</p>
+
+    <?php if ($notif): ?>
+      <div class="mb-5 px-4 py-3 text-sm border-l-4 <?php echo $notif['type']==='success'?'bg-green-50 text-green-900 border-green-800':'bg-red-50 text-red-900 border-red-700'; ?>">
+        <?php echo htmlspecialchars($notif['msg'], ENT_QUOTES, 'UTF-8'); ?>
+      </div>
+    <?php endif; ?>
+
+    <form id="formProfile" method="POST" enctype="multipart/form-data" class="space-y-4">
+      <?php echo csrf_field(); ?>
+      <div class="flex flex-col sm:flex-row items-center gap-4 pb-5 border-b border-stone-200">
+        <img src="<?php echo htmlspecialchars($foto_profil, ENT_QUOTES, 'UTF-8'); ?>" alt="Foto Profil" class="w-16 h-16 rounded-full object-cover border border-stone-200" id="previewFoto">
+        <div class="text-center sm:text-left">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1">Foto Profil</label>
+          <input type="file" name="foto_profil" accept="image/*" class="text-xs text-stone-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-stone-300 file:text-xs file:font-medium file:bg-white file:text-stone-700 hover:file:bg-stone-50 cursor-pointer" onchange="previewImage(event)">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Nama</label>
+          <input type="text" name="nama" value="<?php echo htmlspecialchars($user['nama'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Username</label>
+          <input type="text" name="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Email</label>
+          <input type="email" name="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Nomor Telepon</label>
+          <input type="text" name="telepon" value="<?php echo htmlspecialchars($user['telepon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Alamat</label>
+        <textarea name="alamat" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" rows="2" required><?php echo htmlspecialchars($user['alamat'], ENT_QUOTES, 'UTF-8'); ?></textarea>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button type="submit" class="bg-stone-900 hover:bg-green-800 text-white text-sm font-semibold px-5 py-2 rounded-md transition-colors">Simpan Perubahan</button>
+      </div>
+    </form>
+
+    <hr class="my-8 border-stone-200">
+
+    <h3 class="text-base font-bold text-stone-900 mb-4">Ganti Password</h3>
+    <form id="formPassword" method="POST" class="space-y-4">
+      <?php echo csrf_field(); ?>
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Password Lama</label>
+        <input type="password" name="password_lama" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Password Baru</label>
+          <input type="password" name="password_baru" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-stone-600 mb-1.5">Konfirmasi Password Baru</label>
+          <input type="password" name="konfirmasi_password" class="w-full px-3 py-2 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" required>
+        </div>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button type="submit" class="bg-stone-900 hover:bg-green-800 text-white text-sm font-semibold px-5 py-2 rounded-md transition-colors">Ganti Password</button>
+      </div>
+    </form>
+  </div>
 </div>
 <script>
 function previewImage(event) {
@@ -229,7 +260,15 @@ function previewImage(event) {
 // AJAX kirim kode verifikasi
 document.getElementById('btnKirimKode').onclick = function() {
   this.disabled = true;
-  fetch('profile.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'action=kirim_kode'})
+  const csrfToken = '<?php echo csrf_token(); ?>';
+  fetch('profile.php', {
+    method: 'POST', 
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRF-TOKEN': csrfToken
+    }, 
+    body: 'action=kirim_kode&csrf_token=' + encodeURIComponent(csrfToken)
+  })
     .then(r=>r.json()).then(data=>{
       if(data.success){
         document.getElementById('kodeStatus').classList.remove('hidden');

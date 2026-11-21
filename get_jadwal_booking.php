@@ -36,13 +36,14 @@ $query = "($query_regular) UNION ALL ($query_eskul) UNION ALL ($query_turnamen) 
 
 $result = mysqli_query($conn, $query);
 if (!$result) {
-    echo '<p class="text-red-500">Gagal mengambil data jadwal: ' . mysqli_error($conn) . '</p>';
+    error_log("Gagal mengambil data jadwal: " . mysqli_error($conn));
+    echo '<p class="text-red-500">Gagal mengambil data jadwal. Silakan coba lagi nanti.</p>';
     exit;
 }
 
 // Ambil semua data booking ke array
 $bookings = [];
-while($row = mysqli_fetch_assoc($result)) {
+while ($row = mysqli_fetch_assoc($result)) {
     $bookings[] = $row;
 }
 
@@ -91,7 +92,7 @@ echo '<th class="' . $thClass . '">Status</th>';
 echo '<th class="' . $thClass . '">Jenis Booking</th>';
 echo '</tr></thead><tbody>';
 if (count($bookings) > 0) {
-    foreach($bookings as $row) {
+    foreach ($bookings as $row) {
         echo '<tr>';
         echo '<td class="' . $tdClass . '">' . htmlspecialchars($row['nama_user']) . '</td>';
         echo '<td class="' . $tdClass . '">' . htmlspecialchars($row['nama_lapangan']) . '</td>';
@@ -110,7 +111,7 @@ echo '</tbody></table></div>';
 
 echo '<div class="jadwal-card-list" style="display:none;">';
 if (count($bookings) > 0) {
-    foreach($bookings as $row) {
+    foreach ($bookings as $row) {
         echo '<div class="jadwal-card">';
         echo '<div><span class="jadwal-card-label">Nama User:</span> ' . htmlspecialchars($row['nama_user']) . '</div>';
         echo '<div><span class="jadwal-card-label">Lapangan:</span> ' . htmlspecialchars($row['nama_lapangan']) . '</div>';
@@ -122,4 +123,4 @@ if (count($bookings) > 0) {
 } else {
     echo '<div class="jadwal-card text-green-600">Belum ada booking untuk jadwal ini</div>';
 }
-echo '</div>'; 
+echo '</div>';

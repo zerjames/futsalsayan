@@ -1,6 +1,7 @@
 <?php
-session_start();
+require_once '../includes/security.php';
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
 // Cek apakah user adalah admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
@@ -129,6 +130,7 @@ $result_turnamen = mysqli_query($conn, $query_turnamen);
         <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
             <h3 class="text-lg font-bold mb-4">Edit Harga Paket</h3>
             <form method="POST" action="proses_harga_paket.php">
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="action" value="edit">
                 <input type="hidden" name="id" id="edit_id">
                 <input type="hidden" name="tipe" id="edit_tipe">

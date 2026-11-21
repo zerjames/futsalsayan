@@ -53,6 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             isset($_POST['jam_mulai']) && isset($_POST['jam_selesai']) && 
             isset($_POST['metode_pembayaran'])) {
             
+            if (!validate_csrf_request()) {
+                $error = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.";
+            } else {
             $jam_mulai = mysqli_real_escape_string($conn, $_POST['jam_mulai']);
             $jam_selesai = mysqli_real_escape_string($conn, $_POST['jam_selesai']);
             // Jika admin yang booking, set metode pembayaran COD dan status langsung dikonfirmasi
@@ -131,6 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $error = "Terjadi kesalahan. Silakan coba lagi.";
                 }
             }
+            }
         }
     }
 }
@@ -152,18 +156,19 @@ include 'includes/header.php';
     <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6 my-4">
         <h2 class="text-2xl font-bold text-center text-green-600 mb-2">Booking Lapangan <?php echo htmlspecialchars($lapangan['nama']); ?></h2>
         <div class="text-center mb-6">
-            <a href="lihat_jadwal.php?lapangan=<?php echo $lapangan_id; ?>" class="text-blue-500 hover:text-blue-600">
+            <a href="lihat_jadwal.php?lapangan=<?php echo htmlspecialchars($lapangan_id, ENT_QUOTES, 'UTF-8'); ?>" class="text-blue-500 hover:text-blue-600">
                 <i class="fas fa-calendar-alt mr-1"></i>Lihat Jadwal yang Tersedia
             </a>
         </div>
         
         <?php if (isset($error)): ?>
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <?php echo $error; ?>
+                <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 
         <form method="POST" action="" class="space-y-4" id="bookingForm">
+            <?php echo csrf_field(); ?>
             <?php if ($_SESSION['role'] == 'admin'): ?>
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="selected_user_id">

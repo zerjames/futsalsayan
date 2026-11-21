@@ -11,7 +11,9 @@ date_default_timezone_set('Asia/Jakarta'); // Mengatur zona waktu ke Jakarta
 $step = 1; // Step 1: ask username, Step 2: ask email if username not found
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['username'])) {
+    if (!validate_csrf_request()) {
+        $error = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.";
+    } else if (isset($_POST['username'])) {
         $username = trim($_POST['username']);
         if ($username === '') {
             $error = "Username harus diisi.";
@@ -134,95 +136,97 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['reset'])) {
 }
 ?>
 
-<div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 mt-10">
-    <h2 class="text-2xl font-bold text-center text-green-600 mb-6">Lupa Password</h2>
+<div class="max-w-5xl mx-auto">
+    <a href="login.php" class="inline-flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors mb-6">
+        &larr; Kembali ke Login
+    </a>
 
-    <?php if (isset($error)): ?>
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <?php echo $error; ?>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-2 sm:py-6">
+        <!-- Ilustrasi -->
+        <div class="lg:col-span-6 flex items-center justify-center">
+            <img src="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/assets/images/Forgot_password.svg"
+                 alt="Ilustrasi Lupa Password Futsal Sayan"
+                 class="w-full max-w-[240px] sm:max-w-sm lg:max-w-md h-auto">
         </div>
-    <?php endif; ?>
 
-    <?php if (isset($success)): ?>
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            <div class="flex items-center mb-2">
-                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <strong>Kode Reset Password Berhasil Dikirim!</strong>
-            </div>
-            <p class="mb-3"><?php echo $success; ?></p>
-            <div class="bg-blue-50 border-l-4 border-blue-400 p-3 rounded">
-                <h4 class="font-semibold text-blue-800 mb-2">Langkah Selanjutnya:</h4>
-                <ol class="list-decimal list-inside text-blue-700 text-sm space-y-1">
-                    <li>Cek email Anda (termasuk folder spam)</li>
-                    <li>Salin kode 6 digit yang dikirim</li>
-                    <li>Klik tombol "Masukkan Kode Reset Password" di bawah</li>
-                    <li>Masukkan kode, email, dan password baru Anda</li>
-                </ol>
+        <!-- Form Lupa Password -->
+        <div class="lg:col-span-6">
+            <div class="max-w-md w-full mx-auto bg-white rounded-lg border border-stone-200 p-6 sm:p-8">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-stone-900">Lupa Password</h2>
+                    <p class="text-sm text-stone-500 mt-1">
+                        <?php echo $step == 1 ? 'Masukkan username Anda untuk menerima kode reset 6 digit via email.' : 'Masukkan alamat email yang terdaftar di akun Anda.'; ?>
+                    </p>
+                </div>
+
+                <?php if (isset($error)): ?>
+                    <div class="bg-red-50 border-l-4 border-red-700 text-red-900 px-3.5 py-2.5 text-sm mb-5">
+                        <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($success)): ?>
+                    <div class="bg-green-50 border-l-4 border-green-800 text-green-900 px-4 py-3 text-sm mb-5">
+                        <p class="font-semibold mb-1">Kode Reset Berhasil Dikirim</p>
+                        <p><?php echo htmlspecialchars($success, ENT_QUOTES, 'UTF-8'); ?></p>
+                    </div>
+
+                    <div class="p-4 bg-stone-50 border border-stone-200 rounded-md text-xs text-stone-600 mb-5">
+                        <p class="font-semibold text-stone-800 mb-2">Langkah Selanjutnya</p>
+                        <ol class="list-decimal list-inside space-y-1">
+                            <li>Cek email Anda (termasuk folder spam).</li>
+                            <li>Salin kode verifikasi 6 digit yang dikirim.</li>
+                            <li>Klik tombol di bawah untuk mengatur password baru.</li>
+                        </ol>
+                    </div>
+
+                    <a href="reset_password.php" class="block w-full bg-green-900 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2.5 rounded-md text-center transition-colors">
+                        Masukkan Kode Reset Password
+                    </a>
+                <?php elseif ($step == 1): ?>
+                    <form method="POST" action="" class="space-y-4">
+                        <?php echo csrf_field(); ?>
+                        <div>
+                            <label for="username" class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5">Username</label>
+                            <input type="text" id="username" name="username" required
+                                   class="w-full px-3.5 py-2.5 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" 
+                                   value="<?php echo isset($_SESSION['forgot_username']) ? htmlspecialchars($_SESSION['forgot_username'], ENT_QUOTES, 'UTF-8') : (isset($username) ? htmlspecialchars($username, ENT_QUOTES, 'UTF-8') : ''); ?>">
+                        </div>
+                        <button type="submit" class="w-full bg-green-900 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2.5 rounded-md transition-colors">
+                            Kirim Kode Reset Password
+                        </button>
+                    </form>
+                <?php elseif ($step == 2): ?>
+                    <form method="POST" action="" class="space-y-4">
+                        <?php echo csrf_field(); ?>
+                        <div>
+                            <label for="email" class="block text-stone-700 text-xs font-semibold uppercase tracking-wide mb-1.5">Email</label>
+                            <input type="email" id="email" name="email" required
+                                   class="w-full px-3.5 py-2.5 rounded-md border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900" 
+                                   value="<?php echo isset($_SESSION['forgot_email']) ? htmlspecialchars($_SESSION['forgot_email'], ENT_QUOTES, 'UTF-8') : (isset($email) ? htmlspecialchars($email, ENT_QUOTES, 'UTF-8') : ''); ?>">
+                        </div>
+                        <button type="submit" class="w-full bg-green-900 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2.5 rounded-md transition-colors">
+                            Kirim Kode Reset Password
+                        </button>
+                    </form>
+                <?php endif; ?>
+
+                <!-- Link navigasi -->
+                <div class="mt-6 pt-5 border-t border-stone-200 text-sm text-stone-500 space-y-2">
+                    <?php if (isset($success)): ?>
+                        <p>
+                            <a href="forgot_password.php?reset=1" class="font-medium text-stone-700 hover:text-stone-900 underline">
+                                &larr; Kembali ke input username
+                            </a>
+                        </p>
+                    <?php else: ?>
+                        <p>
+                            Sudah punya kode? <a href="reset_password.php" class="font-semibold text-green-800 hover:underline">Masukkan kode di sini</a>
+                        </p>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
-    <?php endif; ?>
-
-    <?php if (!isset($success) && $step == 1): ?>
-        <form method="POST" action="">
-            <div class="mb-4">
-                <label for="username" class="block text-gray-700 font-semibold mb-2">Username</label>
-                <input type="text" id="username" name="username" required
-                       class="w-full border rounded px-3 py-2" 
-                       value="<?php echo isset($_SESSION['forgot_username']) ? htmlspecialchars($_SESSION['forgot_username']) : (isset($username) ? htmlspecialchars($username) : ''); ?>">
-            </div>
-            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full">
-                Kirim Kode Reset Password
-            </button>
-        </form>
-    <?php elseif (!isset($success) && $step == 2): ?>
-        <form method="POST" action="">
-            <div class="mb-4">
-                <label for="email" class="block text-gray-700 font-semibold mb-2">Email</label>
-                <input type="email" id="email" name="email" required
-                       class="w-full border rounded px-3 py-2" 
-                       value="<?php echo isset($_SESSION['forgot_email']) ? htmlspecialchars($_SESSION['forgot_email']) : (isset($email) ? htmlspecialchars($email) : ''); ?>">
-            </div>
-            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full">
-                Kirim Kode Reset Password
-            </button>
-        </form>
-    <?php endif; ?>
-
-    <?php if (isset($success)): ?>
-        <!-- Tombol untuk melanjutkan ke halaman reset password -->
-        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 class="font-semibold text-blue-800 mb-3">Siap untuk Reset Password?</h3>
-            <a href="reset_password.php" class="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 text-center font-semibold">
-                Masukkan Kode Reset Password
-            </a>
-        </div>
-    <?php endif; ?>
-
-    <!-- Link navigasi -->
-    <div class="mt-6 pt-4 border-t border-gray-200">
-        <?php if (isset($success)): ?>
-            <!-- Jika sudah berhasil kirim kode, tombol kembali ke halaman input username -->
-            <p class="text-center text-gray-600 mb-2">
-                <a href="forgot_password.php?reset=1" class="text-green-600 hover:text-green-800 font-medium">
-                    ← Kembali ke input username
-                </a>
-            </p>
-        <?php else: ?>
-            <!-- Jika belum berhasil, tombol kembali ke login -->
-            <p class="text-center text-gray-600 mb-2">
-                <a href="login.php" class="text-green-600 hover:text-green-800 font-medium">
-                    ← Kembali ke halaman login
-                </a>
-            </p>
-        <?php endif; ?>
-        
-        <?php if (!isset($success)): ?>
-            <p class="text-center text-gray-600">
-                Sudah punya kode? <a href="reset_password.php" class="text-green-600 hover:text-green-800 font-medium">Masukkan kode di sini</a>
-            </p>
-        <?php endif; ?>
     </div>
 </div>
 

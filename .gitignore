@@ -1,0 +1,17 @@
+# Environment & Secrets (NEVER commit to GitHub)
+.env
+
+# Logs & Debug Reports
+error_log
+*.log
+includes/debug_auto_cancel.log
+*-ZAP-Report-*.html
+*.svg.bak
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+

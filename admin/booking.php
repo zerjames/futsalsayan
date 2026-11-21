@@ -20,7 +20,10 @@ $users_result = mysqli_query($conn, $query_users);
 
 // Proses booking
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $user_id = mysqli_real_escape_string($conn, $_POST['user_id']);
+    if (!validate_csrf_request()) {
+        $error = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa.";
+    } else {
+        $user_id = mysqli_real_escape_string($conn, $_POST['user_id']);
     $lapangan_id = mysqli_real_escape_string($conn, $_POST['lapangan_id']);
     $tanggal = mysqli_real_escape_string($conn, $_POST['tanggal']);
     $jam_mulai = mysqli_real_escape_string($conn, $_POST['jam_mulai']);
@@ -81,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "Terjadi kesalahan. Silakan coba lagi.";
         }
     }
+    }
 }
 
 // Ambil semua data lapangan
@@ -97,11 +101,12 @@ require_once '../includes/header.php';
         
         <?php if (isset($error)): ?>
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <?php echo $error; ?>
+                <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 
         <form method="POST" action="" class="space-y-4">
+            <?php echo csrf_field(); ?>
             <!-- Pilih User -->
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="user_id">

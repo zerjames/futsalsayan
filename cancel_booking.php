@@ -14,6 +14,12 @@ if (!isset($_SESSION['user_id']) || !isset($_POST['booking_id'])) {
     exit();
 }
 
+if (!validate_csrf_request()) {
+    $_SESSION['error'] = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa.";
+    header("Location: riwayat.php");
+    exit();
+}
+
 $user_id = $_SESSION['user_id'];
 $booking_id = mysqli_real_escape_string($conn, $_POST['booking_id']);
 $booking_type = mysqli_real_escape_string($conn, $_POST['booking_type']);

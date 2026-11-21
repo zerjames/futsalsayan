@@ -1,11 +1,20 @@
 <?php
-session_start();
+require_once '../includes/security.php';
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
 // Cek apakah user adalah admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header("Location: ../login.php");
     exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_request()) {
+        $_SESSION['error'] = "Token keamanan (CSRF) tidak valid atau telah kedaluwarsa.";
+        header("Location: dashboard.php?tab=kelola_lapangan");
+        exit();
+    }
 }
 
 $action = $_POST['action'] ?? '';
